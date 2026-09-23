@@ -1,0 +1,76 @@
+# Module: Shredder (esp1)
+
+Parts: OLED SH1106, 3-way switch (AUTO / OFF / MANUAL), START, STOP (emergency), **passive**
+buzzer module, relay (motor), IR sensor.
+
+## States
+
+```mermaid
+stateDiagram-v2
+  [*] --> INTERLOCK : boot, switch not OFF
+  [*] --> OFF : boot, switch OFF
+  INTERLOCK --> OFF : switch seen at OFF
+
+  OFF --> MANUAL_IDLE : switch → MANUAL
+  OFF --> AUTO_WAITING : switch → AUTO
+
+  MANUAL_IDLE --> MANUAL_CONFIRM : START → sample IR, play LOADED/EMPTY sound
+  MANUAL_CONFIRM --> MANUAL_RUNNING : START again
+  MANUAL_CONFIRM --> MANUAL_IDLE : STOP or timeout
+  MANUAL_RUNNING --> MANUAL_IDLE : STOP (E-STOP)
+
+  AUTO_WAITING --> AUTO_WARNING : IR detects (debounced)
+  AUTO_WARNING --> AUTO_RUNNING : countdown done (autoStartDelayMs)
+  AUTO_WARNING --> AUTO_WAITING : IR clears during countdown
+  AUTO_RUNNING --> AUTO_WAITING : IR empty for autoEmptyStopDelayMs
+  AUTO_WARNING --> AUTO_ESTOP : STOP
+  AUTO_RUNNING --> AUTO_ESTOP : STOP
+  AUTO_ESTOP --> AUTO_WAITING : IR clears
+```
+
+Changing the switch position from **any** state turns the relay OFF right away and enters the new
+mode's first state (OFF / MANUAL_IDLE / AUTO_WAITING).
+
+| State | Relay | OLED (main line) |
+|---|---|---|
+| INTERLOCK | OFF | `SET SWITCH TO OFF` |
+| OFF | OFF | `OFF` |
+| MANUAL_IDLE | OFF | `MANUAL · Press START to check` |
+| MANUAL_CONFIRM | OFF | `LOADED` or `EMPTY` (large) + `START=Run  STOP=Cancel` + timeout bar |
+| MANUAL_RUNNING | **ON** | `RUNNING` + spinning blade + `STOP to halt` |
+| AUTO_WAITING | OFF | `AUTO · Waiting for material` |
+| AUTO_WARNING | OFF | `STARTING IN 5…4…3` (large countdown) |
+| AUTO_RUNNING | **ON** | `AUTO RUNNING` + spinning blade + IR status |
+| AUTO_ESTOP | OFF | `E-STOP · Clear material to reset` |
+
+Top status bar on every screen: mode, IR ● / ○, and a link icon (hub connected / searching).
+
+## Rules
+
+- **STOP** (physical or remote) turns the relay OFF right away in every state. In MANUAL the next
+  run needs the full START → check → START again. In AUTO it latches `AUTO_ESTOP` until the IR
+  clears (kept from the legacy behaviour).
+- MANUAL runs until STOP. The IR does **not** stop a manual run.
+- In MANUAL_CONFIRM the run starts whether the chute was LOADED or EMPTY. The second START is the
+  operator's deliberate confirmation.
+- If the IR flickers during AUTO_RUNNING, the machine does not stop until it has been empty
+  continuously for `autoEmptyStopDelayMs`.
+- A config change from the web is applied only in OFF, MANUAL_IDLE or AUTO_WAITING.
+
+## Sounds (passive buzzer, tones through LEDC)
+
+| Event | Sound |
+|---|---|
+| Boot | C-E-G rising chime |
+| START / button click | 1 short 2 kHz tick |
+| **LOADED** (IR detects) | **Two high rising tones** 1.5 kHz → 2.5 kHz, 2× |
+| **EMPTY** (IR clear) | **One long low falling tone** 800 Hz → 400 Hz |
+| AUTO warning countdown | 2 kHz beep every 1 s, every 0.25 s in the last second |
+| Relay ON | 1 s rising sweep |
+| Relay OFF | short falling sweep |
+| STOP / E-STOP | 3 fast 3 kHz alarm pulses |
+| Mode change | 2 medium beeps |
+| Running heartbeat | quiet 1 kHz tick every 4 s |
+| IDENTIFY (remote) | alternating 1 kHz / 2 kHz for 3 s |
+
+Uses the legacy non-blocking **queued pattern player**, extended with a frequency per step.

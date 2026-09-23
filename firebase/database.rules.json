@@ -1,0 +1,65 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "roles": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+
+    "hub": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+      ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
+    },
+
+    "modules": {
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
+      "$moduleId": {
+        "info": {
+          ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
+        },
+        "presence": {
+          ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
+        },
+        "state": {
+          ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
+        },
+        "configApplied": {
+          ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
+        },
+        "config": {
+          ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'admin' && $moduleId.matches(/^(shredder|containing|hotpress)$/)",
+          ".validate": "newData.child('version').isNumber() && (!data.exists() || newData.child('version').val() > data.child('version').val())"
+        }
+      }
+    },
+
+    "commands": {
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
+      "$moduleId": {
+        "$cmdId": {
+          ".write": "auth != null && ((root.child('roles/' + auth.uid).val() === 'admin' && !data.exists() && newData.exists() && $moduleId.matches(/^(shredder|containing|hotpress|all)$/)) || root.child('roles/' + auth.uid).val() === 'hub')",
+          ".validate": "newData.hasChildren(['type', 'createdAt', 'status']) && ($moduleId !== 'all' || newData.child('type').val() === 'STOP')",
+          "type": {
+            ".validate": "newData.isString() && newData.val().matches(/^(STOP|IDENTIFY|TARE|CALIBRATE|REBOOT)$/)"
+          },
+          "status": {
+            ".validate": "newData.isString() && newData.val().matches(/^(pending|sent|done|failed|expired)$/)"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          }
+        }
+      }
+    },
+
+    "events": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+      ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'",
+      ".indexOn": ["ts"]
+    }
+  }
+}
