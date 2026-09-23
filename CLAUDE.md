@@ -38,7 +38,7 @@ lights up three tiles: Hot Press, Designing and Curing.
 | Web | React + Vite + TypeScript + Tailwind, hosted on Firebase Hosting. |
 | Auth | Firebase Auth email/password. The web admin and the hub each have an account. Roles live at `/roles/{uid}` = `"admin"` or `"hub"` and are set by hand in the console. |
 | Displays | SH1106 128x64 I2C (U8g2) on shredder, containing and hotpress. The hub has no display. |
-| Repo | GitHub, private, name `tile-machine`, default branch `main`. |
+| Repo | GitHub `RafaelViii/Tile-Machine` (https://github.com/RafaelViii/Tile-Machine), default branch `main`. Currently **public**, so never commit secrets (see §6). |
 
 ## 3. Safety invariants (never break these)
 

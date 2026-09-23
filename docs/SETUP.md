@@ -2,15 +2,12 @@
 
 ## 1. GitHub (version control)
 
-1. On github.com → **New repository** → name `tile-machine`, **Private**. **Don't** add a README,
-   .gitignore or license (the repo already has them).
-2. Copy the repo URL (e.g. `https://github.com/<you>/tile-machine.git`).
-3. In the project folder:
-   ```bash
-   git remote add origin https://github.com/<you>/tile-machine.git
-   git push -u origin main
-   ```
-   The first push opens the Git Credential Manager browser login.
+Repo: <https://github.com/RafaelViii/Tile-Machine> (already connected as `origin`, branch `main`).
+
+To clone it on another PC:
+```bash
+git clone https://github.com/RafaelViii/Tile-Machine.git
+```
 
 ## 2. Tools
 
