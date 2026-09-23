@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <lwip/dns.h>
 
 #include <EspNowTransport.h>
 #include <Reliable.h>
@@ -64,11 +65,11 @@ void saveEntry(uint8_t id) {
 
 void loadRegistry() {
   Preferences p;
-  p.begin(REG_NS, true);
+  p.begin(REG_NS, false);  // read-write so a fresh board creates the namespace instead of logging an error
   for (uint8_t id = 1; id < MODULE_ID_COUNT; id++) {
     char k[4] = {'m', char('0' + id), 0};
     char f[4] = {'f', char('0' + id), 0};
-    if (p.getBytes(k, mods[id].mac, 6) == 6) {
+    if (p.isKey(k) && p.getBytes(k, mods[id].mac, 6) == 6) {
       mods[id].known = true;
       mods[id].fw = p.getUShort(f, 0);
       transport.ensurePeer(mods[id].mac);
@@ -488,6 +489,62 @@ void checkBootButton() {
   }
 }
 
+// ---------------- WiFi diagnostics ----------------
+const char* wifiReason(uint8_t r) {
+  switch (r) {
+    case 2: return "auth expired";
+    case 15: return "4-way handshake timeout (WRONG PASSWORD?)";
+    case 201: return "network not found (check WIFI_SSID spelling/capitals, 2.4 GHz only)";
+    case 202: return "authentication failed (WRONG PASSWORD?)";
+    case 203: return "association failed";
+    case 204: return "handshake timeout (WRONG PASSWORD?)";
+    case 200: return "beacon timeout (weak signal / router off)";
+    case 8: return "left network";
+  }
+  return "see esp_wifi_types.h";
+}
+
+uint32_t lastWifiReasonLogMs = 0;
+
+void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
+  if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+    // Some routers answer DNS very slowly (7 s measured on the first install), which stalls every
+    // new HTTPS connection. Use Google DNS first, keep the router's DNS as fallback.
+    IPAddress router = WiFi.dnsIP(0);
+    ip_addr_t primary = IPADDR4_INIT_BYTES(8, 8, 8, 8);
+    ip_addr_t fallback = IPADDR4_INIT((uint32_t)router);
+    dns_setserver(0, &primary);
+    dns_setserver(1, &fallback);
+    return;
+  }
+  if (event != ARDUINO_EVENT_WIFI_STA_DISCONNECTED) return;
+  const uint8_t r = info.wifi_sta_disconnected.reason;
+  if (millis() - lastWifiReasonLogMs < 5000) return;  // WiFi retries fast; don't flood the log
+  lastWifiReasonLogMs = millis();
+  Serial.printf("\n[ERROR] WiFi disconnected, reason %u: %s\n", r, wifiReason(r));
+}
+
+/** After a failed connect: is the SSID visible? Catches capitalization typos and 5 GHz-only names. */
+void diagnoseWifi() {
+  Serial.println("[NET] scanning to diagnose WiFi...");
+  const int n = WiFi.scanNetworks();
+  bool exact = false;
+  for (int i = 0; i < n; i++) {
+    const String s = WiFi.SSID(i);
+    if (s == WIFI_SSID) {
+      exact = true;
+      Serial.printf("[NET] '%s' found: channel %d, signal %d dBm -> SSID is right, check the PASSWORD\n", s.c_str(),
+                    WiFi.channel(i), WiFi.RSSI(i));
+    } else if (s.equalsIgnoreCase(WIFI_SSID)) {
+      Serial.printf("[ERROR] '%s' not found, but '%s' exists: WIFI_SSID is case-sensitive, fix secrets.h\n", WIFI_SSID,
+                    s.c_str());
+    }
+  }
+  if (!exact) Serial.printf("[ERROR] '%s' is not visible (%d networks seen). Check spelling, and that it's 2.4 GHz\n",
+                            WIFI_SSID, n);
+  WiFi.scanDelete();
+}
+
 uint32_t lastPresenceMs = 0, lastPushMs = 0, lastReportMs = 0;
 
 void printReport() {
@@ -512,6 +569,7 @@ void setup() {
   setLed(false);
   pinMode(PIN_BOOT_BUTTON, INPUT_PULLUP);
 
+  WiFi.onEvent(onWifiEvent);  // before begin(), so the first GOT_IP already switches DNS
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -526,6 +584,8 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("[NET] WiFi connected, IP %s, channel %u\n", WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
+    diagnoseWifi();
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);  // keep trying in the background
     Serial.println("[ERROR] WiFi not connected yet: running ESP-NOW anyway, Firebase will follow when WiFi is up");
   }
 

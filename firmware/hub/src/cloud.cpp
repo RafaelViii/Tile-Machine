@@ -1,9 +1,11 @@
 #include "cloud.h"
 
-#include <HTTPClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <esp_http_client.h>
 #include <time.h>
+
+#include <string>
 
 #include "ca_bundle.h"
 #include "codec.h"
@@ -43,22 +45,31 @@ volatile uint32_t session_ = 0;
 uint32_t eventCounter = 0;
 char bootTag[9];
 
-// ---------------- task-only state ----------------
+// Token shared with the stream task (guarded by mtx). tokenGen changes on every new sign-in.
+String streamToken;
+volatile uint32_t tokenGen = 0;
+volatile bool haveToken = false;  // cleared by either task to force a new sign-in
+
+// ---------------- cloud-task-only state ----------------
 String dbUrl;   // https://host (no trailing slash)
 String dbHost;  // host only
 String idToken;
-bool haveToken = false;
 uint32_t tokenValidUntilMs = 0;
 uint32_t authBackoffMs = 0;
 uint32_t nextAuthAttemptMs = 0;
 
-WiFiClientSecure restTls;
-HTTPClient http;
+// ESP-IDF HTTP clients, one persistent keep-alive connection per host. (Arduino's
+// WiFiClientSecure/HTTPClient block for the full socket timeout in connected()/available() on an
+// idle connection in core 2.0.x, which stalled every write by ~10 s.)
+esp_http_client_handle_t authClient = nullptr;
+esp_http_client_handle_t dbClient = nullptr;
+std::string* respSink = nullptr;
 
+// ---------------- stream-task-only state ----------------
 WiFiClientSecure streamTls;
 bool streaming = false;
 uint32_t streamLastDataMs = 0;
-uint32_t nextStreamAttemptMs = 0;
+uint32_t streamRetryAtMs = 0;
 String streamLine, streamEvent, streamData;
 
 bool timeStarted = false;
@@ -75,7 +86,8 @@ int handledNext = 0;
 bool timeSynced() { return time(nullptr) > 1700000000; }
 uint64_t epochMs() { return (uint64_t)time(nullptr) * 1000ULL; }
 
-void setOnline(bool v) {
+void setOnline(bool v) {  // called from both the cloud task and the stream task
+  Lock l;
   if (v && !online_) {
     session_ = session_ + 1;
     Serial.println("[NET] Firebase online");
@@ -87,16 +99,57 @@ void setOnline(bool v) {
 
 String url(const String& path) { return dbUrl + "/" + path + ".json?auth=" + idToken; }
 
+esp_err_t onHttpEvent(esp_http_client_event_t* e) {
+  if (e->event_id == HTTP_EVENT_ON_DATA && respSink && e->data_len > 0)
+    respSink->append(static_cast<const char*>(e->data), e->data_len);
+  return ESP_OK;
+}
+
+esp_http_client_handle_t makeClient(const char* baseUrl) {
+  esp_http_client_config_t cfg = {};
+  cfg.url = baseUrl;
+  cfg.cert_pem = CA_BUNDLE;
+  cfg.timeout_ms = 10000;
+  cfg.event_handler = onHttpEvent;
+  cfg.keep_alive_enable = true;
+  cfg.buffer_size = 2048;
+  cfg.buffer_size_tx = 2048;  // the auth token in the URL is ~1 KB
+  return esp_http_client_init(&cfg);
+}
+
+/** Returns the HTTP status, or -1 on a network/TLS error. */
 int request(const char* method, const String& u, const String& body, String* resp) {
-  http.setReuse(true);
-  http.setConnectTimeout(10000);
-  http.setTimeout(10000);
-  if (!http.begin(restTls, u)) return -1;
-  http.addHeader("Content-Type", "application/json");
-  int code = strcmp(method, "GET") == 0 ? http.GET() : http.sendRequest(method, body);
-  String r = code > 0 ? http.getString() : String();  // always drain so the connection can be reused
-  if (resp) *resp = r;
-  http.end();
+  const uint32_t t0 = millis();
+  esp_http_client_handle_t c = u.startsWith("https://identitytoolkit") ? authClient : dbClient;
+  esp_http_client_method_t m = strcmp(method, "GET") == 0     ? HTTP_METHOD_GET
+                               : strcmp(method, "POST") == 0  ? HTTP_METHOD_POST
+                               : strcmp(method, "PATCH") == 0 ? HTTP_METHOD_PATCH
+                                                              : HTTP_METHOD_PUT;
+  std::string sink;
+  int code = -1;
+  for (int attempt = 0; attempt < 2; attempt++) {  // 2nd attempt = fresh connection if the kept-alive one died
+    sink.clear();
+    respSink = &sink;
+    esp_http_client_set_url(c, u.c_str());
+    esp_http_client_set_method(c, m);
+    esp_http_client_set_header(c, "Content-Type", "application/json");
+    esp_http_client_set_post_field(c, body.length() ? body.c_str() : nullptr, body.length());
+    esp_err_t err = esp_http_client_perform(c);
+    respSink = nullptr;
+    if (err == ESP_OK) {
+      code = esp_http_client_get_status_code(c);
+      break;
+    }
+    esp_http_client_close(c);
+  }
+  if (resp) *resp = sink.c_str();
+#ifdef CLOUD_DEBUG
+  String p = u.substring(u.indexOf(".app/") + 4, u.indexOf('?') > 0 ? u.indexOf('?') : u.length());
+  Serial.printf("[DBG] %lu %s %s -> %d in %lu ms, heap %u (largest block %u)\n", (unsigned long)millis(), method,
+                p.c_str(), code, (unsigned long)(millis() - t0), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+#else
+  (void)t0;
+#endif
   return code;
 }
 
@@ -152,6 +205,9 @@ bool ensureAuth() {
   int code = request("POST", String("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=") +
                                  FIREBASE_API_KEY,
                      body, &resp);
+  // Sign-in happens about once an hour: don't keep that TLS session (~40 KB of heap) open, the
+  // command stream needs the memory.
+  esp_http_client_close(authClient);
   if (code == 200) {
     JsonDocument r;
     if (!deserializeJson(r, resp) && r["idToken"].is<const char*>()) {
@@ -159,13 +215,14 @@ bool ensureAuth() {
       uint32_t exp = (uint32_t)atol(r["expiresIn"] | "3600");
       uint32_t useFor = exp > 600 ? exp - 300 : exp / 2;  // refresh 5 min before expiry
       tokenValidUntilMs = millis() + useFor * 1000UL;
+      {
+        Lock l;
+        streamToken = idToken;
+        tokenGen = tokenGen + 1;  // stream task reconnects with the new token
+      }
       haveToken = true;
       authBackoffMs = 0;
       nextAuthAttemptMs = 0;
-      if (streaming) {  // stream must reconnect with the new token
-        streamTls.stop();
-        streaming = false;
-      }
       Serial.println("[NET] Firebase signed in as hub");
       return true;
     }
@@ -388,7 +445,7 @@ void dispatchStreamEvent() {
   } else if (streamEvent == "cancel") {
     Serial.println("[ERROR] command stream cancelled by Firebase (permission?)");
     closeStream();
-    nextStreamAttemptMs = millis() + 30000;
+    streamRetryAtMs = millis() + 30000;
   } else if (streamEvent == "auth_revoked") {
     haveToken = false;
     closeStream();
@@ -410,12 +467,16 @@ void processStreamLine() {
   }
 }
 
-bool openStream() {
+bool openStream(const String& token) {
+#ifdef CLOUD_DEBUG
+  Serial.printf("[DBG] %lu opening stream\n", (unsigned long)millis());
+#endif
   if (!streamTls.connect(dbHost.c_str(), 443)) {
-    Serial.println("[ERROR] command stream: TLS connect failed");
+    Serial.printf("[ERROR] command stream: TLS connect failed (heap %u, largest block %u)\n", ESP.getFreeHeap(),
+                  ESP.getMaxAllocHeap());
     return false;
   }
-  streamTls.print(String("GET /commands.json?auth=") + idToken + " HTTP/1.1\r\nHost: " + dbHost +
+  streamTls.print(String("GET /commands.json?auth=") + token + " HTTP/1.1\r\nHost: " + dbHost +
                   "\r\nAccept: text/event-stream\r\nConnection: keep-alive\r\n\r\n");
   streamTls.setTimeout(10);  // seconds (WiFiClientSecure) for the header phase
   String status = streamTls.readStringUntil('\n');
@@ -431,6 +492,9 @@ bool openStream() {
     h.trim();
     if (h.length() == 0) break;
   }
+  // RTDB sends a keep-alive about every 30 s. A read that waits longer than this means the
+  // connection is dead: WiFiClientSecure then errors out and we reconnect.
+  streamTls.setTimeout(CLOUD_STREAM_IDLE_MS / 1000);
   streaming = true;
   streamLastDataMs = millis();
   streamLine.reserve(512);
@@ -438,46 +502,60 @@ bool openStream() {
   return true;
 }
 
-void serviceStream() {
-  if (!streaming) {
-    // Only after NTP sync, so every command's age can be checked (no replays of old commands).
-    if (!timeSynced() || (int32_t)(millis() - nextStreamAttemptMs) < 0) return;
-    if (!openStream()) {
-      nextStreamAttemptMs = millis() + 5000;
-      return;
-    }
-  }
-  if (!streamTls.connected() && !streamTls.available()) {
-    Serial.println("[NET] command stream closed, reconnecting");
-    closeStream();
-    nextStreamAttemptMs = millis() + 2000;
-    return;
-  }
+// Own task: reading the stream blocks until data arrives (fine here, fatal in the cloud task).
+void streamTask(void*) {
   uint8_t buf[512];
-  int budget = 8;  // max 4 KB per pass, keep the task responsive
-  while (budget-- > 0 && streamTls.available()) {
-    int n = streamTls.read(buf, sizeof(buf));
-    if (n <= 0) break;
-    streamLastDataMs = millis();
-    for (int i = 0; i < n; i++) {
-      char c = (char)buf[i];
-      if (c == '\n') {
-        processStreamLine();
-        streamLine = "";
-        if (!streaming) return;  // dispatch closed the stream
-      } else if (c != '\r') {
-        if (streamLine.length() >= 16384) {
-          Serial.println("[ERROR] command stream line too long, reconnecting");
-          closeStream();
-          return;
+  for (;;) {
+    // Only after NTP sync, so every command's age can be checked (no replays of old commands).
+    if (WiFi.status() != WL_CONNECTED || !timeSynced() || !haveToken || tokenGen == 0 ||
+        (int32_t)(millis() - streamRetryAtMs) < 0) {
+      vTaskDelay(pdMS_TO_TICKS(500));
+      continue;
+    }
+    uint32_t gen;
+    String token;
+    {
+      Lock l;
+      gen = tokenGen;
+      token = streamToken;
+    }
+    if (!openStream(token)) {
+      streamRetryAtMs = millis() + 5000;
+      continue;
+    }
+
+    while (streaming && gen == tokenGen && WiFi.status() == WL_CONNECTED) {
+      int n = streamTls.read(buf, sizeof(buf));  // blocks until data or timeout
+      if (n <= 0) {
+        if (!streamTls.connected()) {
+          Serial.println("[NET] command stream closed, reconnecting");
+          break;
         }
-        streamLine += c;
+        if (millis() - streamLastDataMs > CLOUD_STREAM_IDLE_MS) {
+          Serial.println("[NET] command stream idle, reconnecting");
+          break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(20));
+        continue;
+      }
+      streamLastDataMs = millis();
+      for (int i = 0; i < n && streaming; i++) {
+        char c = (char)buf[i];
+        if (c == '\n') {
+          processStreamLine();
+          streamLine = "";
+        } else if (c != '\r') {
+          if (streamLine.length() >= 16384) {
+            Serial.println("[ERROR] command stream line too long, reconnecting");
+            streaming = false;
+            break;
+          }
+          streamLine += c;
+        }
       }
     }
-  }
-  if (millis() - streamLastDataMs > CLOUD_STREAM_IDLE_MS) {
-    Serial.println("[NET] command stream idle, reconnecting");
     closeStream();
+    if ((int32_t)(millis() - streamRetryAtMs) >= 0) streamRetryAtMs = millis() + 2000;
   }
 }
 
@@ -509,8 +587,7 @@ void retention() {
 
 void task(void*) {
   for (;;) {
-    if (WiFi.status() != WL_CONNECTED) {
-      if (streaming) closeStream();
+    if (WiFi.status() != WL_CONNECTED) {  // (the stream task notices WiFi loss on its own)
       setOnline(false);
       vTaskDelay(pdMS_TO_TICKS(500));
       continue;
@@ -524,19 +601,39 @@ void task(void*) {
       continue;
     }
 
-    serviceStream();
-
+#ifdef CLOUD_DEBUG
+#define TIMED(name, stmt)                                                                         \
+  do {                                                                                            \
+    uint32_t _t = millis();                                                                       \
+    stmt;                                                                                         \
+    if (millis() - _t > 1000) Serial.printf("[DBG] %s took %lu ms\n", name, (unsigned long)(millis() - _t)); \
+  } while (0)
+    static bool dnsTested = false;
+    if (!dnsTested) {
+      dnsTested = true;
+      IPAddress ip;
+      for (const char* h : {"identitytoolkit.googleapis.com", dbHost.c_str(), "pool.ntp.org"}) {
+        uint32_t t = millis();
+        bool ok = WiFi.hostByName(h, ip);
+        Serial.printf("[DBG] DNS %s -> %s in %lu ms\n", h, ok ? ip.toString().c_str() : "FAIL",
+                      (unsigned long)(millis() - t));
+      }
+      Serial.printf("[DBG] DNS server %s, time synced: %d\n", WiFi.dnsIP().toString().c_str(), timeSynced());
+    }
+#else
+#define TIMED(name, stmt) stmt
+#endif
     const uint32_t now = millis();
     if (now - lastFlushMs >= CLOUD_FLUSH_MS) {
       lastFlushMs = now;
-      flushPending();
+      TIMED("flush", flushPending());
     }
-    flushStatuses();
+    TIMED("statuses", flushStatuses());
     if (now - lastPollMs >= CLOUD_CONFIG_POLL_MS) {
       lastPollMs = now;
-      pollConfigs();
+      TIMED("poll", pollConfigs());
     }
-    retention();
+    TIMED("retention", retention());
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
@@ -555,12 +652,14 @@ void begin() {
   int slash = dbHost.indexOf('/');
   if (slash >= 0) dbHost = dbHost.substring(0, slash);
 
-  restTls.setCACert(CA_BUNDLE);
+  authClient = makeClient("https://identitytoolkit.googleapis.com/");
+  dbClient = makeClient((dbUrl + "/").c_str());
   streamTls.setCACert(CA_BUNDLE);
   snprintf(bootTag, sizeof(bootTag), "%08lx", (unsigned long)esp_random());
 
   // Core 0 (with the WiFi stack); loop() keeps core 1 for ESP-NOW handling.
   xTaskCreatePinnedToCore(task, "cloud", 16384, nullptr, 1, nullptr, 0);
+  xTaskCreatePinnedToCore(streamTask, "cloudStream", 12288, nullptr, 1, nullptr, 0);
 }
 
 bool online() { return online_; }

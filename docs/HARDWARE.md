@@ -18,6 +18,8 @@ I2C bus on every board with an OLED: **SDA = 21, SCL = 22**.
 |---|---|---|
 | Status LED | 2 | On-board LED. Slow blink = WiFi connecting. Fast blink = Firebase error. Solid = OK. Short flicker = ESP-NOW packet. |
 | BOOT button | 0 | Hold 5 s **at runtime** to clear pairings and restart. Not read during boot. |
+| DS3231 RTC SDA | 21 | I2C (planned, not in firmware yet). VCC 3.3 V, GND. RTC address 0x68 (+ EEPROM 0x57 on most modules). |
+| DS3231 RTC SCL | 22 | I2C (planned) |
 
 No OLED. Power by USB or 5 V. Place it where both the router and all modules are within range.
 

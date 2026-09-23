@@ -25,6 +25,18 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   `modules/X/state`.
 - One forbidden path fails the **whole** batch (HTTP 401), so command status updates go in
   **separate** requests.
+- **Don't use Arduino `HTTPClient`/`WiFiClientSecure` for the REST writes.** In core 2.0.17,
+  `WiFiClientSecure::connected()`/`available()` call `mbedtls_ssl_read()` on a blocking socket.
+  On an idle keep-alive connection they block for the full socket timeout (10 s), which stalled
+  every write and froze the task. REST therefore uses ESP-IDF `esp_http_client`: one persistent
+  connection to the DB, and the sign-in connection is closed right after use to free about 40 KB
+  of heap. The `/commands` stream uses `WiFiClientSecure` in its **own task**, where blocking reads
+  are harmless.
+- **DNS**: the first installation's router took about 7 s per lookup. On every `GOT_IP` the hub
+  sets DNS to 8.8.8.8, with the router's DNS as fallback.
+- Measured on the real hub: sign-in about 2 s, batched PATCH about 105 ms, STOP round trip
+  (web → hub → Firebase status) about 125 ms, free heap stable around 87 KB.
+- Build with `PLATFORMIO_BUILD_FLAGS=-DCLOUD_DEBUG` to log every request's timing and the heap.
 - TLS is verified against `include/ca_bundle.h` (GTS Root R1–R4 + GlobalSign Root CA, checked
   with openssl against both Google hosts). GlobalSign R1 expires 2028-01-28. Re-check the bundle
   before then.

@@ -132,9 +132,9 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       commands. Checked end-to-end with a headless browser against simulated hub data.
 - [x] Phase 1: `TileProtocol` lib + hub auto-pairing + presence over ESP-NOW
 - [x] Phase 2: hub → RTDB (batched state/presence/events, config polling + push, `/commands` stream).
-      Compiles with zero warnings, and every Firebase call was proven with curl against the live DB.
-      **Not yet run on real hardware.** Next: flash the hub + `firmware/linktest` and confirm the
-      tiles light up.
+      **Verified on the real hub (COM7)**: steady `lastSeen` < 11 s, STOP ALL round trip about 125 ms.
+      See docs/modules/hub.md for the HTTPClient-blocking and slow-DNS fixes.
+- [ ] Next: flash `firmware/linktest` on a module board → confirm its tile lights up on the web.
 - [ ] Phase 3: Shredder firmware (manual/auto/off, passive buzzer, OLED, remote config + STOP)
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
@@ -142,6 +142,10 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [ ] Phase 7: Hardening: ESP-NOW encryption, WiFi provisioning portal, OTA
 
 ## 9. Open questions / pending decisions
+
+- **DS3231 RTC on the hub** (user is adding it, I2C SDA21/SCL22). Its purpose isn't confirmed yet.
+  Likely: keep correct time without internet, so events queued while offline get their real time
+  instead of the upload time, and the command-age check works before NTP sync.
 
 - Hotpress **AUTO** logic is not defined yet (placeholder: display `AUTO`, Hotpress relay ON).
 - Real shredder dispense/IR thresholds and container **time tables** are measured on the hardware.
