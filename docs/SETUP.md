@@ -20,10 +20,10 @@ git clone https://github.com/RafaelViii/Tile-Machine.git
 
 ## 3. Firebase project
 
-1. <https://console.firebase.google.com> → **Add project** → e.g. `tile-machine`. Google
-   Analytics isn't needed. The Spark (free) plan is enough.
-2. **Build → Realtime Database → Create database**. Pick the region closest to you. Start in
-   **locked mode**.
+Project: **`tile-machine-92345`**, Realtime Database in **asia-southeast1**.
+
+1. ✅ Project created.
+2. ✅ Realtime Database created. It should be in **locked mode** until our rules are deployed.
 3. **Build → Authentication → Get started → Email/Password → Enable**.
 4. **Authentication → Users → Add user**, twice:
    - you (web admin), e.g. your email + a strong password
@@ -34,13 +34,14 @@ git clone https://github.com/RafaelViii/Tile-Machine.git
    roles/<your-uid> = "admin"
    roles/<hub-uid>  = "hub"
    ```
-6. **Project settings → General → Your apps → Web (</>)** → register the app `tile-machine-web`.
-   Copy the config values into `web/.env.local` (template: `web/.env.example`, created in
-   Phase 2).
+6. ✅ Web app registered. The config is in `web/.env.local` (git-ignored, template
+   `web/.env.example`). Analytics is not used.
 7. Copy the **Web API key** and **Database URL** into `firmware/hub/include/secrets.h` (template:
-   `secrets.example.h`, created in Phase 1/2), together with the hub email/password and your WiFi.
-8. In the repo root: copy `.firebaserc.example` → `.firebaserc` and put in your project id, then
+   `secrets.example.h`, created in Phase 1), together with the hub email/password and your WiFi.
+8. Deploy the security rules from the repo root (`.firebaserc` already points to the project):
    ```bash
+   npm install -g firebase-tools
+   firebase login
    firebase deploy --only database
    ```
 

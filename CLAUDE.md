@@ -36,6 +36,7 @@ lights up three tiles: Hot Press, Designing and Curing.
 | Remote control | The web can **change config** and send **STOP** (per module or all), plus IDENTIFY/TARE/CALIBRATE/REBOOT. The web can **never START** a motor, heater or dispenser. Starting needs a person at the machine. |
 | Firmware | PlatformIO, `espressif32` platform 6.x → **Arduino-ESP32 core 2.0.x**. Use the core-2 APIs: ESP-NOW recv callback `(const uint8_t* mac, const uint8_t* data, int len)`, and LEDC `ledcSetup` / `ledcAttachPin` / `ledcWriteTone`. Don't mix in core-3 APIs. |
 | Web | React + Vite + TypeScript + Tailwind, hosted on Firebase Hosting. |
+| Firebase project | `tile-machine-92345`, RTDB region **asia-southeast1** (`https://tile-machine-92345-default-rtdb.asia-southeast1.firebasedatabase.app`). Analytics is not used. |
 | Auth | Firebase Auth email/password. The web admin and the hub each have an account. Roles live at `/roles/{uid}` = `"admin"` or `"hub"` and are set by hand in the console. |
 | Displays | SH1106 128x64 I2C (U8g2) on shredder, containing and hotpress. The hub has no display. |
 | Repo | GitHub `RafaelViii/Tile-Machine` (https://github.com/RafaelViii/Tile-Machine), default branch `main`. Currently **public**, so never commit secrets (see §6). |
@@ -63,7 +64,7 @@ lights up three tiles: Hot Press, Designing and Curing.
 CLAUDE.md                  ← this file
 README.md
 firebase.json              ← Firebase CLI config (RTDB rules + Hosting → web/dist)
-.firebaserc.example        ← copy to .firebaserc once the Firebase project exists
+.firebaserc               ← Firebase project id (not secret)
 docs/
   ARCHITECTURE.md          ← system design, flows, diagrams
   PROTOCOL.md              ← ESP-NOW message spec (binary)
