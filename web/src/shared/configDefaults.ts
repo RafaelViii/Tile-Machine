@@ -47,7 +47,6 @@ export const DEFAULT_CONTAINING: ContainingConfig = {
   })),
   mixed: [0, 1].map(() => ({ mode: 'MANUAL' as const, runTimeMs: 10000 })),
   servo: Array.from({ length: 8 }, () => ({ stopUs: 1500, runUs: 1300 })),
-  calFactor: [1, 1, 1, 1],
 };
 
 export const DEFAULT_HOTPRESS: HotpressConfig = {
@@ -78,7 +77,6 @@ export function normalizeConfig<M extends ModuleId>(id: M, stored: unknown): Con
     }),
     mixed: d.mixed.map((def, i) => ({ ...def, ...c.mixed?.[i] })),
     servo: d.servo.map((def, i) => ({ ...def, ...c.servo?.[i] })),
-    calFactor: d.calFactor.map((def, i) => c.calFactor?.[i] ?? def),
   };
   return out as ConfigByModule[M];
 }

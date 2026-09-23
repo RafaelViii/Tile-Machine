@@ -248,7 +248,7 @@ function MixedCard({ i, cfg, update, live, hxOk, connected }: {
   );
 }
 
-function Advanced({ cfg, update }: { cfg: ContainingConfig; update: Update }) {
+function Advanced({ cfg, update, calFactor }: { cfg: ContainingConfig; update: Update; calFactor?: number[] }) {
   const [open, setOpen] = useState(false);
   return (
     <Card className="mt-6">
@@ -291,11 +291,17 @@ function Advanced({ cfg, update }: { cfg: ContainingConfig; update: Update }) {
             ))}
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {cfg.calFactor.map((f, i) => (
-              <Stat key={i} label={`Cal factor C${i + 1}`} value={f.toFixed(4)} />
+            {[0, 1, 2, 3].map((i) => (
+              <Stat
+                key={i}
+                label={`Cal factor C${i + 1}`}
+                value={typeof calFactor?.[i] === 'number' ? calFactor[i].toFixed(4) : '—'}
+              />
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-zinc-500">Calibration factors are set by the Calibrate buttons above.</p>
+          <p className="mt-2 text-[11px] text-zinc-500">
+            Stored on the Containing board and set only by the Calibrate buttons above, so saving config never changes them.
+          </p>
         </div>
       )}
     </Card>
@@ -325,7 +331,7 @@ export function ContainingPage() {
         <MixedCard i={0} cfg={d} update={cfg.update} live={s?.containers?.[2]} hxOk={hxOk(2)} connected={connected} />
         <MixedCard i={1} cfg={d} update={cfg.update} live={s?.containers?.[3]} hxOk={hxOk(3)} connected={connected} />
       </div>
-      <Advanced cfg={d} update={cfg.update} />
+      <Advanced cfg={d} update={cfg.update} calFactor={s?.calFactor} />
       <ConfigBar {...cfg} connected={connected} onSave={cfg.save} onReset={cfg.reset} />
     </ModulePanel>
   );

@@ -66,6 +66,8 @@ export interface ContainingState extends StateCommon {
   hxOkMask: number;
   pcaOk: boolean;
   containers: ContainerState[];
+  /** Load-cell calibration, owned by the module (set via CALIBRATE). Not part of config. */
+  calFactor: number[];
 }
 
 export interface HotpressState extends StateCommon {
@@ -111,7 +113,6 @@ export interface ContainingConfig {
   raw: RawContainerConfig[]; // 0 Raw HDPE, 1 Raw PP
   mixed: MixedContainerConfig[]; // 0 Mixed HDPE, 1 Mixed PP
   servo: ServoConfig[]; // 8 entries, PCA9685 ch 0..7
-  calFactor: number[]; // 4 entries
 }
 
 export interface HotpressConfig {

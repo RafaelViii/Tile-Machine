@@ -57,7 +57,7 @@
     },
 
     "events": {
-      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
       ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'",
       ".indexOn": ["ts"]
     }

@@ -1,0 +1,7 @@
+{
+  "name": "TileProtocol",
+  "version": "1.0.0",
+  "description": "Tile Machine ESP-NOW protocol: message structs, transport, reliable delivery, module pairing link",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

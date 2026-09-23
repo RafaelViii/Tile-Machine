@@ -76,6 +76,7 @@ docs/
 firmware/
   lib/TileProtocol/        ← shared ESP-NOW protocol library (used by all 4 boards)
   hub/  shredder/  containing/  hotpress/   ← one PlatformIO project each
+  linktest/                ← temporary pairing-test firmware for module boards (drives nothing)
 web/                       ← React dashboard
 firebase/
   database.rules.json      ← RTDB security rules
@@ -129,8 +130,11 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [x] Firebase: project, auth users, roles, rules deployed and verified
 - [x] Web dashboard live at https://tile-machine-92345.web.app. All pages, config forms and
       commands. Checked end-to-end with a headless browser against simulated hub data.
-- [ ] Phase 1: `TileProtocol` lib + hub auto-pairing + presence over ESP-NOW (Serial only)
-- [ ] Phase 2: hub → RTDB (presence, state, config/command forwarding) so the live site shows real devices
+- [x] Phase 1: `TileProtocol` lib + hub auto-pairing + presence over ESP-NOW
+- [x] Phase 2: hub → RTDB (batched state/presence/events, config polling + push, `/commands` stream).
+      Compiles with zero warnings, and every Firebase call was proven with curl against the live DB.
+      **Not yet run on real hardware.** Next: flash the hub + `firmware/linktest` and confirm the
+      tiles light up.
 - [ ] Phase 3: Shredder firmware (manual/auto/off, passive buzzer, OLED, remote config + STOP)
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
@@ -142,3 +146,5 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - Hotpress **AUTO** logic is not defined yet (placeholder: display `AUTO`, Hotpress relay ON).
 - Real shredder dispense/IR thresholds and container **time tables** are measured on the hardware.
 - Load-cell calibration factors are measured per container (TARE + known weight from the web).
+  **Decision:** calibration is owned by the Containing module (NVS) and only reported in its state.
+  It is not part of config, so a web config save can never overwrite a calibration.

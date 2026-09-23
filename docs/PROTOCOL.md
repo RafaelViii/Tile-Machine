@@ -46,8 +46,18 @@ enum class ModuleId : uint8_t { HUB = 0, SHREDDER = 1, CONTAINING = 2, HOTPRESS 
 when idle), `3 UNSUPPORTED`.
 
 **Reliability**: ACK-requested messages are retried up to 3 times, 200 ms apart. The receiver
-de-duplicates by `(sender, seq)` using the last 8 seqs, and re-ACKs a duplicate without
-re-executing it.
+de-duplicates by `(sender, seq)`. It remembers the last 16 seqs for **3 s** (retries span about
+0.8 s) and re-ACKs a duplicate without re-executing it. Every device starts its `seq` counter at a
+**random** value at boot. Together with the 3 s expiry, this stops a new message after a reboot
+(for example a STOP) from being mistaken for an old duplicate and skipped.
+
+**fwVersion** (`u16`): `major` 4 bits, `minor` 6 bits, `patch` 6 bits, i.e.
+`(major << 12) | (minor << 6) | patch`. The hub shows it as `"M.m.p"` in `modules/{id}/info/fw`.
+
+**Channel**: the hub never changes channel (it follows its router). A module on a stored hub first
+sends a unicast HELLO on the stored channel and waits `PROBE_TIMEOUT_MS` = 600 ms. It then scans
+channels 1–13, `SCAN_DWELL_MS` each, with a broadcast HELLO. It pairs on the first WELCOME and saves
+the hub MAC and channel in NVS (namespace `tilelink`).
 
 ## 4. Timing constants
 
@@ -101,8 +111,12 @@ struct __attribute__((packed)) StatusContaining {
   uint8_t hxOkMask;          // bit n = HX711 n responding
   uint8_t pcaOk;
   ContainerStatus ct[4];     // 0 Raw HDPE, 1 Raw PP, 2 Mixed HDPE, 3 Mixed PP
+  float   calFactor[4];      // HX711 counts per gram, OWNED by the module (set by CALIBRATE, kept in NVS)
 };
 ```
+(ContainerStatus = 16 bytes, StatusContaining = 94 bytes.) Calibration lives in the module and is
+only *reported* here. It is deliberately **not** part of CONFIG, so saving config from the web can
+never overwrite a calibration.
 
 **Hotpress**
 ```c
@@ -152,11 +166,10 @@ struct __attribute__((packed)) ConfigContaining {
   RawContainerCfg   raw[2];
   MixedContainerCfg mixed[2];
   ServoCfg          servo[8];
-  float             calFactor[4];   // HX711 counts per gram
 };
 ```
-(Size = 4 + 2×31 + 2×5 + 8×4 + 4×4 = 124 bytes + 12 header = 136, which fits in 250. The library
-has a `static_assert` for every message, so a struct change that breaks the limit won't compile.)
+(Size = 4 + 2×31 + 2×5 + 8×4 = 108 bytes + 12 header = 120, which fits in 250. The library has a
+`static_assert` for every message, so a struct change that breaks the limit won't compile.)
 
 **Containing ranges** (the firmware rejects values outside these; the web clamps to them, see
 `web/src/shared/configDefaults.ts`):
@@ -170,7 +183,6 @@ has a `static_assert` for every message, so a struct change that breaks the limi
 | `mixed[].runTimeMs` | 10000 | 1000..600000 |
 | `servo[].stopUs` | 1500 | 1000..2000 |
 | `servo[].runUs` | 1300 | 500..2500 |
-| `calFactor[]` | 1.0 | must be finite and ≠ 0 |
 
 **Hotpress**
 ```c
@@ -187,7 +199,7 @@ struct __attribute__((packed)) ConfigHotpress {
 | 1 | STOP | 0xFF all units / unit index | — | Same as the physical STOP. |
 | 2 | IDENTIFY | — | — | Beep/blink/flash the OLED for 3 s, to find which board is which. |
 | 3 | TARE | container 0..3 | — | Zero that load cell (containing only). |
-| 4 | CALIBRATE | container 0..3 | known grams | Compute and save `calFactor` (containing only). |
+| 4 | CALIBRATE | container 0..3 | known grams | Compute `calFactor`, save it in the module's NVS, report it in STATUS (containing only). |
 | 5 | REBOOT | — | — | `ESP.restart()` only when idle, otherwise `REJECTED`. |
 
 ## 8. EVENT codes

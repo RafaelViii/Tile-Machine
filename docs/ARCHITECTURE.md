@@ -86,7 +86,7 @@ A tile is shown **Connected** only when `hubOnline && modules/{id}/presence/onli
 ## 4. Config flow (web → module)
 
 1. The web writes `/modules/{id}/config` with `version = previous + 1` (RTDB transaction).
-2. The hub's stream fires. The hub converts the JSON to the binary `CONFIG` payload and sends it
+2. The hub sees the new version (it polls `config/version` every 3 s). It converts the JSON to the binary `CONFIG` payload and sends it
    with an ACK request (3 retries, 200 ms apart).
 3. The module validates ranges. It ACKs `OK` or `REJECTED`, stores the config in NVS, and applies
    it **at the next idle point** (safety invariant 6).

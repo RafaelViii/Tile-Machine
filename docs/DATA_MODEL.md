@@ -85,7 +85,8 @@ web compares them against server time (`.info/serverTimeOffset`), never the brow
   "containers": [   // index 0 Raw HDPE, 1 Raw PP, 2 Mixed HDPE, 3 Mixed PP
     { "weightG": 12450, "state": "DISPENSING", "mode": "LOADCELL", "selectedKg": 2,
       "progressPct": 40, "remainingMs": 0, "dispensedG": 800 }
-  ] }
+  ],
+  "calFactor": [1.0, 1.0, 1.0, 1.0] }   // owned by the module (CALIBRATE command), read-only on the web
 
 // hotpress
 { "onButton": true, "selector": "NEUTRAL|LEFT|RIGHT", "relayDesignCure": true,
@@ -109,8 +110,8 @@ web compares them against server time (`.info/serverTimeOffset`), never the brow
   "mixed": [ // 0 Mixed HDPE, 1 Mixed PP
     { "mode": "MANUAL|TIME", "runTimeMs": 10000 }
   ],
-  "servo": [ { "stopUs": 1500, "runUs": 1300 } ],   // 8 entries, PCA9685 ch 0..7
-  "calFactor": [1.0, 1.0, 1.0, 1.0] }
+  "servo": [ { "stopUs": 1500, "runUs": 1300 } ] }  // 8 entries, PCA9685 ch 0..7
+// Load-cell calibration is NOT config (see state.calFactor), so a config save can't overwrite it.
 
 // hotpress
 { "version": 1, "autoModeBehaviour": 0 }
