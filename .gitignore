@@ -19,6 +19,7 @@ serviceAccount*.json
 # ---- Node / web ----
 node_modules/
 web/dist/
+*.tsbuildinfo
 *.local
 npm-debug.log*
 yarn-error.log*

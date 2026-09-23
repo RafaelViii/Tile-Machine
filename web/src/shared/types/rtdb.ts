@@ -1,0 +1,162 @@
+// TypeScript mirror of docs/DATA_MODEL.md. Change both together.
+
+export type ModuleId = 'shredder' | 'containing' | 'hotpress';
+export const MODULE_IDS: ModuleId[] = ['shredder', 'containing', 'hotpress'];
+
+export type Selector = 'NEUTRAL' | 'LEFT' | 'RIGHT';
+
+// ---------- /hub ----------
+export interface HubNode {
+  online?: boolean;
+  lastSeen?: number;
+  bootAt?: number;
+  fw?: string;
+  ip?: string;
+  wifiRssi?: number;
+  wifiChannel?: number;
+  protocolVersion?: number;
+}
+
+// ---------- /modules/{id} ----------
+export interface ModuleInfo {
+  mac: string;
+  fw: string;
+  pairedAt: number;
+}
+
+export interface Presence {
+  online: boolean;
+  lastSeen: number;
+}
+
+export interface ConfigApplied {
+  version: number;
+  result: 'ok' | 'queued' | 'rejected';
+  at: number;
+}
+
+interface StateCommon {
+  interlock: boolean;
+  faults: number;
+  uptimeS: number;
+  configVersion: number;
+}
+
+export interface ShredderState extends StateCommon {
+  mode: 'OFF' | 'MANUAL' | 'AUTO';
+  state: string;
+  relayOn: boolean;
+  irDetected: boolean;
+  estopLatched: boolean;
+  countdownMs: number;
+}
+
+export interface ContainerState {
+  weightG: number;
+  state: string;
+  mode: string;
+  selectedKg: number;
+  progressPct: number;
+  remainingMs: number;
+  dispensedG: number;
+}
+
+export interface ContainingState extends StateCommon {
+  selector: Selector;
+  hxOkMask: number;
+  pcaOk: boolean;
+  containers: ContainerState[];
+}
+
+export interface HotpressState extends StateCommon {
+  onButton: boolean;
+  selector: Selector;
+  relayDesignCure: boolean;
+  relayHotpress: boolean;
+  stopLatched: boolean;
+}
+
+export interface ShredderConfig {
+  version: number;
+  autoStartDelayMs: number;
+  autoEmptyStopDelayMs: number;
+  manualConfirmTimeoutMs: number;
+  irDebounceMs: number;
+  buzzerVolumePct: number;
+}
+
+export type RawMode = 'LOADCELL' | 'TIME';
+export type MixedMode = 'MANUAL' | 'TIME';
+
+export interface RawContainerConfig {
+  mode: RawMode;
+  timeTableMs: number[]; // 5 entries: 1..5 kg
+  maxDispenseMs: number;
+  jamTimeoutMs: number;
+  toleranceG: number;
+}
+
+export interface MixedContainerConfig {
+  mode: MixedMode;
+  runTimeMs: number;
+}
+
+export interface ServoConfig {
+  stopUs: number;
+  runUs: number;
+}
+
+export interface ContainingConfig {
+  version: number;
+  raw: RawContainerConfig[]; // 0 Raw HDPE, 1 Raw PP
+  mixed: MixedContainerConfig[]; // 0 Mixed HDPE, 1 Mixed PP
+  servo: ServoConfig[]; // 8 entries, PCA9685 ch 0..7
+  calFactor: number[]; // 4 entries
+}
+
+export interface HotpressConfig {
+  version: number;
+  autoModeBehaviour: number;
+}
+
+export interface ConfigByModule {
+  shredder: ShredderConfig;
+  containing: ContainingConfig;
+  hotpress: HotpressConfig;
+}
+
+export interface StateByModule {
+  shredder: ShredderState;
+  containing: ContainingState;
+  hotpress: HotpressState;
+}
+
+export interface ModuleNode<M extends ModuleId> {
+  info?: ModuleInfo;
+  presence?: Presence;
+  state?: StateByModule[M];
+  config?: ConfigByModule[M];
+  configApplied?: ConfigApplied;
+}
+
+// ---------- /commands/{moduleId|all}/{pushId} ----------
+export type CommandType = 'STOP' | 'IDENTIFY' | 'TARE' | 'CALIBRATE' | 'REBOOT';
+export type CommandStatus = 'pending' | 'sent' | 'done' | 'failed' | 'expired';
+
+export interface CommandNode {
+  type: CommandType;
+  target?: number;
+  arg?: number;
+  createdAt: number;
+  by: string;
+  status: CommandStatus;
+  updatedAt?: number;
+}
+
+// ---------- /events/{pushId} ----------
+export interface EventNode {
+  ts: number;
+  module: ModuleId | 'hub';
+  code: string;
+  args?: number[];
+}

@@ -118,20 +118,23 @@ npm install
 npm run dev
 npm run build
 
-# Firebase (from repo root)
+# Firebase (from repo root, CLI logged in as the admin Google account)
 firebase deploy --only database     # rules
-firebase deploy --only hosting      # dashboard
+cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 ```
 
 ## 8. Roadmap / status
 
 - [x] Phase 0: Requirements, architecture docs, repo skeleton, CLAUDE.md
+- [x] Firebase: project, auth users, roles, rules deployed and verified
+- [x] Web dashboard live at https://tile-machine-92345.web.app. All pages, config forms and
+      commands. Checked end-to-end with a headless browser against simulated hub data.
 - [ ] Phase 1: `TileProtocol` lib + hub auto-pairing + presence over ESP-NOW (Serial only)
-- [ ] Phase 2: Firebase project + hub → RTDB presence + web dashboard with highlight/connected tiles
+- [ ] Phase 2: hub → RTDB (presence, state, config/command forwarding) so the live site shows real devices
 - [ ] Phase 3: Shredder firmware (manual/auto/off, passive buzzer, OLED, remote config + STOP)
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
-- [ ] Phase 6: Web config pages (sliders: Loadcell/Time, Manual/Time, time inputs) + commands + event log
+- [ ] Phase 6: Web polish after real hardware testing (config pages, commands and event log already built)
 - [ ] Phase 7: Hardening: ESP-NOW encryption, WiFi provisioning portal, OTA
 
 ## 9. Open questions / pending decisions

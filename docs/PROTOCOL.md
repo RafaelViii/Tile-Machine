@@ -158,6 +158,20 @@ struct __attribute__((packed)) ConfigContaining {
 (Size = 4 + 2×31 + 2×5 + 8×4 + 4×4 = 124 bytes + 12 header = 136, which fits in 250. The library
 has a `static_assert` for every message, so a struct change that breaks the limit won't compile.)
 
+**Containing ranges** (the firmware rejects values outside these; the web clamps to them, see
+`web/src/shared/configDefaults.ts`):
+
+| Field | Default | Range |
+|---|---|---|
+| `raw[].timeTableMs[k]` | 10000·(k+1) | 1000..600000 |
+| `raw[].maxDispenseMs` | 120000 | 10000..600000 |
+| `raw[].jamTimeoutMs` | 10000 | 2000..60000 |
+| `raw[].toleranceG` | 50 | 0..500 |
+| `mixed[].runTimeMs` | 10000 | 1000..600000 |
+| `servo[].stopUs` | 1500 | 1000..2000 |
+| `servo[].runUs` | 1300 | 500..2500 |
+| `calFactor[]` | 1.0 | must be finite and ≠ 0 |
+
 **Hotpress**
 ```c
 struct __attribute__((packed)) ConfigHotpress {
