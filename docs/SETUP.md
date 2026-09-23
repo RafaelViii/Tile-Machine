@@ -24,24 +24,26 @@ Project: **`tile-machine-92345`**, Realtime Database in **asia-southeast1**.
 
 1. ✅ Project created.
 2. ✅ Realtime Database created. It should be in **locked mode** until our rules are deployed.
-3. **Build → Authentication → Get started → Email/Password → Enable**.
-4. **Authentication → Users → Add user**, twice:
-   - you (web admin), e.g. your email + a strong password
-   - the hub, e.g. `hub@tile-machine.local` + a long random password
-   Copy both **User UIDs**.
-5. **Realtime Database → Data**: create
+3. ✅ Email/Password sign-in enabled.
+4. ✅ Users:
+   - admin: `rafaelvberinguelajr@gmail.com`, uid `EJ1xMe2WYfbYppddoNmXrX7e1H73`
+   - hub: `hub@tile-machine.local`, uid `aVibq4sfUOSFcDzsQC7zZ6xykX92` (password only in the
+     git-ignored `firmware/hub/include/secrets.h`)
+5. ✅ Roles written with the CLI (`firebase database:set /roles …`):
    ```
-   roles/<your-uid> = "admin"
-   roles/<hub-uid>  = "hub"
+   roles/EJ1xMe2WYfbYppddoNmXrX7e1H73 = "admin"
+   roles/aVibq4sfUOSFcDzsQC7zZ6xykX92 = "hub"
    ```
+   To add another admin later: create the user in the console, then
+   `firebase database:set /roles/<uid> '"admin"'` or add it in Realtime Database → Data.
 6. ✅ Web app registered. The config is in `web/.env.local` (git-ignored, template
    `web/.env.example`). Analytics is not used.
 7. Copy the **Web API key** and **Database URL** into `firmware/hub/include/secrets.h` (template:
    `secrets.example.h`, created in Phase 1), together with the hub email/password and your WiFi.
-8. Deploy the security rules from the repo root (`.firebaserc` already points to the project):
+8. ✅ Rules deployed and checked: an anonymous user is blocked, the hub can write `/hub` and read
+   `/modules`, and the hub can't write config or change roles. To redeploy after editing
+   `firebase/database.rules.json` (the CLI is already logged in as the admin Google account):
    ```bash
-   npm install -g firebase-tools
-   firebase login
    firebase deploy --only database
    ```
 
