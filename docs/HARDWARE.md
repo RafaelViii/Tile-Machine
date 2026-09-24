@@ -19,7 +19,7 @@ I2C bus on every board with an OLED: **SDA = 21, SCL = 22**.
 | Status LED | 2 | On-board LED. Slow blink = WiFi connecting. Fast blink = Firebase error. Solid = OK. Short flicker = ESP-NOW packet. |
 | BOOT button | 0 | Hold 5 s **at runtime** to clear pairings and restart. Not read during boot. |
 | DS3231 RTC SDA | 21 | I2C, 100 kHz. VCC 3.3 V, GND. RTC 0x68 + AT24C32 EEPROM 0x57 (both detected on the installed board). |
-| DS3231 RTC SCL | 22 | I2C. ⚠️ ZS-042 boards charge the coin cell: LIR2032, or remove the charge diode for a CR2032. |
+| DS3231 RTC SCL | 22 | I2C. ⚠️ Power the RTC board from **3.3 V only**. The ZS-042 charging circuit (diode + 200 Ω) then gives ~2.6 V, below the installed CR2032, so no current flows into it. **Never 5 V:** that pushes ~4.3 V into the non-rechargeable cell. |
 
 No OLED. Power by USB or 5 V. Place it where both the router and all modules are within range.
 

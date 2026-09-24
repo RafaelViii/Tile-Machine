@@ -32,8 +32,8 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   the correct time 0.7 s after reset, and NTP agreed within 1 s.
 - The DS3231 board also has a 4 KB AT24C32 EEPROM (0x57), unused so far. Planned: keep unsent events
   through a power cut.
-- ⚠️ ZS-042 boards charge the coin cell. Use an LIR2032, or remove the charging diode/resistor
-  when using a CR2032.
+- ⚠️ Installed with a **CR2032, unmodified board, powered from 3.3 V**: safe, because the charging circuit only
+  reaches ~2.6 V < cell voltage. Never power the RTC board from 5 V (it would charge the CR2032).
 
 ## Firebase write rules (learned by testing the real database)
 
