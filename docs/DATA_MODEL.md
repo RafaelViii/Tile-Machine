@@ -5,6 +5,9 @@ This is the contract between the **hub** and the **web**. It is mirrored in
 
 Timestamps are milliseconds since epoch, written with `{".sv": "timestamp"}` (server time). The
 web compares them against server time (`.info/serverTimeOffset`), never the browser clock alone.
+**Exception:** `events/*/ts` is the hub's own clock (DS3231 RTC / NTP) at the moment the event
+happened, so events queued while offline keep their real time. It falls back to server time only
+while the hub doesn't know the time.
 
 ## Tree
 
@@ -22,7 +25,9 @@ web compares them against server time (`.info/serverTimeOffset`), never the brow
     "ip": "192.168.1.50",
     "wifiRssi": -58,
     "wifiChannel": 6,
-    "protocolVersion": 1
+    "protocolVersion": 1,
+    "timeSource": "ntp" | "rtc" | "none",        // where the hub clock currently comes from
+    "rtc": "ok" | "lost-power" | "missing"        // DS3231 state
   },
 
   "modules": {

@@ -2,7 +2,9 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <TileTime.h>
 #include <esp_http_client.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include <string>
@@ -83,7 +85,8 @@ char handled[HANDLED_RING][40];
 int handledNext = 0;
 
 // ---------------- helpers ----------------
-bool timeSynced() { return time(nullptr) > 1700000000; }
+// True once the hub knows the time (DS3231 at boot, or NTP). The command stream waits for it.
+bool timeSynced() { return tile::epochValid(time(nullptr)); }
 uint64_t epochMs() { return (uint64_t)time(nullptr) * 1000ULL; }
 
 void setOnline(bool v) {  // called from both the cloud task and the stream task
@@ -690,7 +693,14 @@ void pushEvent(const char* module, const char* code, int32_t arg0, int32_t arg1)
   char key[40];
   snprintf(key, sizeof(key), "events/h%s_%06lu", bootTag, (unsigned long)eventCounter++);
   JsonObject e = pending[String(key)].to<JsonObject>();
-  e["ts"][".sv"] = "timestamp";
+  // Stamp with the hub clock (DS3231/NTP) at the moment it happened, so events queued while
+  // offline keep their real time. Server time only if the hub doesn't know the time yet.
+  timeval tv;
+  gettimeofday(&tv, nullptr);
+  if (tile::epochValid(tv.tv_sec))
+    e["ts"] = (uint64_t)tv.tv_sec * 1000ULL + tv.tv_usec / 1000;
+  else
+    e["ts"][".sv"] = "timestamp";
   e["module"] = String(module);
   e["code"] = String(code);
   JsonArray a = e["args"].to<JsonArray>();

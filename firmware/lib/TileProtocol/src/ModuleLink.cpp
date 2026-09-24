@@ -157,6 +157,24 @@ void ModuleLink::handleFrame(const Frame& f) {
       if (plen == sizeof(AckPayload)) reliable_.handleAck(f.mac, *reinterpret_cast<const AckPayload*>(payload));
       break;
 
+    case MsgType::TIME: {
+      if (plen != sizeof(TimePayload)) break;
+      TimePayload t;
+      memcpy(&t, payload, sizeof(t));
+      if (!epochValid(t.epoch)) break;
+      const bool first = !timeKnown_;
+      epochBase_ = t.epoch;
+      epochBaseMs_ = millis();
+      tzOffsetMin_ = t.tzOffsetMin;
+      timeKnown_ = true;
+      if (first) {
+        char s[24];
+        formatLocalTime(t.epoch, t.tzOffsetMin, s, sizeof(s));
+        Serial.printf("[NET] clock set from hub: %s (UTC%+d:%02d)\n", s, t.tzOffsetMin / 60, abs(t.tzOffsetMin % 60));
+      }
+      break;
+    }
+
     case MsgType::CONFIG:
     case MsgType::COMMAND: {
       AckResult result;

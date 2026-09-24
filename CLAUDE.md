@@ -143,9 +143,9 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 
 ## 9. Open questions / pending decisions
 
-- **DS3231 RTC on the hub** (user is adding it, I2C SDA21/SCL22). Its purpose isn't confirmed yet.
-  Likely: keep correct time without internet, so events queued while offline get their real time
-  instead of the upload time, and the command-age check works before NTP sync.
+- **DS3231 RTC on the hub** is done (docs/modules/hub.md "Clock"): time at boot without internet,
+  real event timestamps, `TIME` to modules for OLED clocks. Still open: keep unsent events in its
+  AT24C32 EEPROM through power cuts.
 
 - Hotpress **AUTO** logic is not defined yet (placeholder: display `AUTO`, Hotpress relay ON).
 - Real shredder dispense/IR thresholds and container **time tables** are measured on the hardware.

@@ -15,6 +15,10 @@ export interface HubNode {
   wifiRssi?: number;
   wifiChannel?: number;
   protocolVersion?: number;
+  /** Where the hub's clock comes from right now. */
+  timeSource?: 'ntp' | 'rtc' | 'none';
+  /** DS3231 state: ok, lost-power (battery/time lost, waiting for internet time) or missing. */
+  rtc?: 'ok' | 'lost-power' | 'missing';
 }
 
 // ---------- /modules/{id} ----------

@@ -11,6 +11,7 @@
 #include <functional>
 #include "EspNowTransport.h"
 #include "Reliable.h"
+#include "TileTime.h"
 
 namespace tile {
 
@@ -45,6 +46,11 @@ class ModuleLink {
   bool paired() const { return state_ == State::PAIRED; }
   uint8_t channel() const { return channel_; }
 
+  /** Wall-clock time from the hub (DS3231 RTC / NTP), kept running locally between TIME messages. */
+  bool timeKnown() const { return timeKnown_; }
+  uint32_t nowEpoch() const { return timeKnown_ ? epochBase_ + (millis() - epochBaseMs_) / 1000 : 0; }
+  int16_t tzOffsetMin() const { return tzOffsetMin_; }
+
   /** Forgets the stored hub (NVS) and starts scanning. */
   void forgetHub();
 
@@ -76,6 +82,11 @@ class ModuleLink {
   uint8_t statusLen_ = 0;
   uint32_t lastStatusMs_ = 0;
   bool forceStatus_ = false;
+
+  bool timeKnown_ = false;
+  uint32_t epochBase_ = 0;
+  uint32_t epochBaseMs_ = 0;
+  int16_t tzOffsetMin_ = 0;
 };
 
 }  // namespace tile

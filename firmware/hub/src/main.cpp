@@ -7,16 +7,20 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <esp_sntp.h>
 #include <lwip/dns.h>
+#include <sys/time.h>
 
 #include <EspNowTransport.h>
 #include <Reliable.h>
 #include <TileProtocol.h>
+#include <TileTime.h>
 
 #include "cloud.h"
 #include "codec.h"
 #include "config.h"
 #include "pins.h"
+#include "rtc.h"
 #include "secrets.h"
 
 using namespace tile;
@@ -50,6 +54,79 @@ struct ModuleEntry {
 };
 
 ModuleEntry mods[MODULE_ID_COUNT];  // index = ModuleId (0 unused)
+bool timeDue[MODULE_ID_COUNT] = {false};  // send TIME to this module on the next loop
+
+// ---------------- clock (DS3231 RTC + NTP) ----------------
+enum class TimeSource : uint8_t { NONE, RTC, NTP };
+TimeSource timeSource = TimeSource::NONE;
+rtc::Status rtcStatus = rtc::Status::MISSING;
+volatile bool ntpSynced = false;  // set by the SNTP callback (lwIP task), handled in loop()
+bool clockDirty = false;          // hub/timeSource + hub/rtc need writing
+uint32_t lastTimeBroadcastMs = 0;
+
+const char* timeSourceName() {
+  switch (timeSource) {
+    case TimeSource::RTC: return "rtc";
+    case TimeSource::NTP: return "ntp";
+    default: return "none";
+  }
+}
+
+void onNtpSync(struct timeval*) { ntpSynced = true; }
+
+bool clockValid() { return epochValid(time(nullptr)); }
+
+void logClock(const char* prefix) {
+  char s[24];
+  formatLocalTime(time(nullptr), LOCAL_TZ_OFFSET_MIN, s, sizeof(s));
+  Serial.printf("[STATE] %s %s (UTC%+d), source %s, RTC %s\n", prefix, s, LOCAL_TZ_OFFSET_MIN / 60, timeSourceName(),
+                rtc::statusName(rtcStatus));
+}
+
+/** Boot: take the time from the DS3231 so it's right before WiFi/NTP (or with no internet at all). */
+void initClock() {
+  uint32_t epoch = 0;
+  rtcStatus = rtc::begin(epoch);
+  if (rtcStatus == rtc::Status::OK) {
+    timeval tv = {(time_t)epoch, 0};
+    settimeofday(&tv, nullptr);
+    timeSource = TimeSource::RTC;
+    logClock("clock from RTC:");
+    Serial.printf("[STATE] RTC temperature %.2f C\n", rtc::temperature());
+  } else if (rtcStatus == rtc::Status::LOST_POWER) {
+    Serial.println("[STATE] RTC found but its time is not set (new/removed battery): waiting for internet time");
+  } else {
+    Serial.println("[ERROR] DS3231 RTC not found on I2C (SDA 21 / SCL 22): time only from internet");
+  }
+  sntp_set_time_sync_notification_cb(onNtpSync);  // cloud task starts SNTP via configTime()
+}
+
+/** After every NTP sync: trust NTP, and correct the RTC if it's off or was never set. */
+void serviceClock() {
+  if (!ntpSynced) return;
+  ntpSynced = false;
+  const uint32_t now = time(nullptr);
+  if (timeSource != TimeSource::NTP) clockDirty = true;
+  timeSource = TimeSource::NTP;
+
+  if (rtcStatus != rtc::Status::MISSING) {
+    uint32_t r = 0;
+    const bool ok = rtc::read(r);
+    const uint32_t drift = ok ? (r > now ? r - now : now - r) : UINT32_MAX;
+    if (!ok || drift > RTC_MAX_DRIFT_S) {
+      if (rtc::write(now)) {
+        if (ok) Serial.printf("[STATE] RTC corrected by %lu s\n", (unsigned long)drift);
+        else Serial.println("[STATE] RTC set from internet time");
+        if (rtcStatus != rtc::Status::OK) clockDirty = true;
+        rtcStatus = rtc::Status::OK;
+      } else {
+        Serial.println("[ERROR] writing the RTC failed");
+      }
+    }
+  }
+  logClock("internet time synced:");
+  for (uint8_t id = 1; id < MODULE_ID_COUNT; id++) timeDue[id] = true;  // push the corrected time
+}
 
 constexpr const char* REG_NS = "hubreg";
 
@@ -148,6 +225,10 @@ void writeHubFields(bool full) {
   d.set(WiFi.channel());
   cloud::set("hub/wifiChannel", d.as<JsonVariantConst>());
   if (!full) return;
+  d.set(timeSourceName());
+  cloud::set("hub/timeSource", d.as<JsonVariantConst>());
+  d.set(rtc::statusName(rtcStatus));
+  cloud::set("hub/rtc", d.as<JsonVariantConst>());
   char fw[12];
   fwDecode(HUB_FW, fw, sizeof(fw));
   d.set(fw);
@@ -184,6 +265,7 @@ void touch(uint8_t id, const uint8_t* mac) {
     e.online = true;
     e.presenceDirty = true;
     e.infoDirty = true;
+    timeDue[id] = true;  // sent after this loop's WELCOME, so the module is already paired
     cloud::pushEvent(moduleKey((ModuleId)id), "MODULE_ONLINE");
     Serial.printf("[NET] %s ONLINE\n", moduleKey((ModuleId)id));
   }
@@ -197,6 +279,27 @@ void sendWelcome(uint8_t id) {
   cloud::DesiredConfig d;
   pkt.p.desiredConfigVersion = cloud::desiredConfig((ModuleId)id, d) ? d.version : 0;
   transport.send(mods[id].mac, &pkt, sizeof(pkt));
+}
+
+void sendTime(uint8_t id) {
+  if (!clockValid() || !mods[id].online) return;
+  Packet<TimePayload> pkt;
+  fillHeader(pkt.h, MsgType::TIME, ModuleId::HUB, seq++, false);
+  pkt.p.epoch = (uint32_t)time(nullptr);
+  pkt.p.tzOffsetMin = LOCAL_TZ_OFFSET_MIN;
+  transport.send(mods[id].mac, &pkt, sizeof(pkt));
+}
+
+void serviceTimeBroadcast() {
+  const uint32_t now = millis();
+  const bool periodic = now - lastTimeBroadcastMs >= TIME_BROADCAST_MS;
+  if (periodic) lastTimeBroadcastMs = now;
+  for (uint8_t id = 1; id < MODULE_ID_COUNT; id++) {
+    if (!(periodic || timeDue[id]) || !mods[id].online) continue;
+    if (!clockValid()) continue;  // keep timeDue set until the hub knows the time
+    sendTime(id);
+    timeDue[id] = false;
+  }
 }
 
 void handleFrame(const Frame& f) {
@@ -221,6 +324,7 @@ void handleFrame(const Frame& f) {
       e.appliedVersion = p->configVersion;
       e.appliedKnown = true;
       sendWelcome(id);
+      timeDue[id] = true;  // a (re)paired module gets the clock right away
       break;
     }
 
@@ -434,6 +538,13 @@ void syncCloud() {
       mods[id].reportedAppliedVersion = UINT32_MAX;
     }
     lastHeartbeatMs = now;
+  } else if (clockDirty) {
+    clockDirty = false;
+    JsonDocument d;
+    d.set(timeSourceName());
+    cloud::set("hub/timeSource", d.as<JsonVariantConst>());
+    d.set(rtc::statusName(rtcStatus));
+    cloud::set("hub/rtc", d.as<JsonVariantConst>());
   } else if (now - lastHeartbeatMs >= HUB_HEARTBEAT_MS) {
     lastHeartbeatMs = now;
     writeHubFields(false);
@@ -569,6 +680,8 @@ void setup() {
   setLed(false);
   pinMode(PIN_BOOT_BUTTON, INPUT_PULLUP);
 
+  initClock();  // DS3231 first: correct time before WiFi, even with no internet
+
   WiFi.onEvent(onWifiEvent);  // before begin(), so the first GOT_IP already switches DNS
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -622,6 +735,8 @@ void loop() {
     lastPushMs = now;
     pushConfigs();
   }
+  serviceClock();
+  serviceTimeBroadcast();
   syncCloud();
   updateLed();
   checkBootButton();

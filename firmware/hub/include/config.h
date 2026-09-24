@@ -8,6 +8,11 @@
 #define HUB_FW_PATCH 0
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
+// ---- Clock ----
+constexpr int16_t LOCAL_TZ_OFFSET_MIN = 480;     // UTC+8 (Philippines), sent to modules for OLED clocks
+constexpr uint32_t TIME_BROADCAST_MS = 60000;    // TIME to every online module this often
+constexpr uint32_t RTC_MAX_DRIFT_S = 2;          // re-write the RTC after NTP if it drifted more than this
+
 // ---- Timing ----
 constexpr uint32_t WIFI_BOOT_WAIT_MS = 20000;     // wait this long for WiFi before starting ESP-NOW anyway
 constexpr uint32_t PRESENCE_CHECK_MS = 250;

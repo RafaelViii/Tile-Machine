@@ -17,6 +17,24 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
    and download a config only when its version changed. Streaming `/modules` would echo back
    the hub's own state writes.
 
+## Clock: DS3231 RTC + NTP
+
+- **Boot:** read the DS3231 (I2C 0x68) and set the system clock **before WiFi**. The hub knows the
+  time with no internet, so the `/commands` stream (which needs time to reject old commands)
+  and event timestamps work immediately.
+- **After every NTP sync** (at start, then hourly): NTP wins. The RTC is rewritten if it was never
+  set (oscillator-stop flag, e.g. new battery) or drifted more than `RTC_MAX_DRIFT_S` (2 s).
+- **Events** are stamped with the hub clock when they happen (not when uploaded).
+- **Modules** get a `TIME` message (UTC + `LOCAL_TZ_OFFSET_MIN` = +480, UTC+8) for their OLED clocks.
+- The website hub card shows **Clock (DS3231)**: `hub/rtc` = ok / lost-power / missing and
+  `hub/timeSource` = ntp / rtc / none.
+- Verified on the hub: an unset RTC was set from NTP 1.2 s after WiFi. On the next boot the RTC gave
+  the correct time 0.7 s after reset, and NTP agreed within 1 s.
+- The DS3231 board also has a 4 KB AT24C32 EEPROM (0x57), unused so far. Planned: keep unsent events
+  through a power cut.
+- ⚠️ ZS-042 boards charge the coin cell. Use an LIR2032, or remove the charging diode/resistor
+  when using a CR2032.
+
 ## Firebase write rules (learned by testing the real database)
 
 - All state, presence, info, hub fields and events go in **one multi-path PATCH** every 500 ms.

@@ -149,12 +149,25 @@ export function DashboardPage() {
             modules start lighting up.
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             <Stat label="Last seen" value={ago(hub.lastSeen, now)} tone={hubOnline ? 'green' : 'red'} />
             <Stat label="Up since" value={hub.bootAt ? uptime(Math.round((now - hub.bootAt) / 1000)) : '—'} />
             <Stat label="IP" value={hub.ip ?? '—'} />
             <Stat label="WiFi channel" value={hub.wifiChannel ?? '—'} />
             <Stat label="WiFi signal" value={hub.wifiRssi !== undefined ? `${hub.wifiRssi} dBm` : '—'} />
+            <Stat
+              label="Clock (DS3231)"
+              value={
+                hub.rtc === 'ok'
+                  ? `RTC ok · ${hub.timeSource === 'ntp' ? 'internet' : hub.timeSource === 'rtc' ? 'RTC only' : '—'}`
+                  : hub.rtc === 'lost-power'
+                    ? 'RTC not set'
+                    : hub.rtc === 'missing'
+                      ? 'RTC missing'
+                      : '—'
+              }
+              tone={hub.rtc === 'ok' ? 'green' : hub.rtc ? 'amber' : undefined}
+            />
             <Stat label="Firmware" value={hub.fw ?? '—'} />
           </div>
         )}

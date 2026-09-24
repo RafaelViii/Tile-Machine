@@ -45,6 +45,7 @@ inline const char* moduleKey(ModuleId id) {
 enum class MsgType : uint8_t {
   HELLO = 0x01,
   WELCOME = 0x02,
+  TIME = 0x03,  // hub -> module, no ACK (added in v1; older modules ignore unknown types)
   STATUS = 0x10,
   EVENT = 0x11,
   CONFIG = 0x20,
@@ -203,6 +204,11 @@ struct WelcomePayload {
   uint32_t desiredConfigVersion;
 };
 
+struct TimePayload {
+  uint32_t epoch;       // UTC seconds, from the hub's DS3231 RTC / NTP
+  int16_t tzOffsetMin;  // local time = UTC + this (e.g. +480 = UTC+8), for OLED clocks
+};
+
 struct EventPayload {
   uint16_t code;
   int32_t arg0;
@@ -317,6 +323,7 @@ struct Packet {
 
 // ---------- Size guarantees ----------
 static_assert(sizeof(MsgHeader) == 12, "header must be 12 bytes");
+static_assert(sizeof(TimePayload) == 6, "TimePayload layout changed");
 static_assert(sizeof(StatusCommon) == 11, "StatusCommon layout changed");
 static_assert(sizeof(RawContainerCfg) == 31, "RawContainerCfg layout changed");
 static_assert(sizeof(ConfigContaining) == 108, "ConfigContaining layout changed (docs/PROTOCOL.md §6)");

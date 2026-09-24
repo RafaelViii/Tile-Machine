@@ -36,6 +36,7 @@ enum class ModuleId : uint8_t { HUB = 0, SHREDDER = 1, CONTAINING = 2, HOTPRESS 
 |---|---|---|---|---|
 | 0x01 | HELLO | module → broadcast/hub | no | `fwVersion u16, configVersion u32` |
 | 0x02 | WELCOME | hub → module | no | `channel u8, hubFw u16, desiredConfigVersion u32` |
+| 0x03 | TIME | hub → module | no | `epoch u32` (UTC s), `tzOffsetMin i16` (local = UTC + this). Sent after pairing, after each NTP sync and every 60 s. Modules keep counting with `millis()` in between (`ModuleLink::nowEpoch()`). Older modules ignore it. |
 | 0x10 | STATUS | module → hub | no | module-specific (§5), sent every 1000 ms **and** on change (min gap 100 ms) |
 | 0x11 | EVENT | module → hub | yes | `code u16, arg0 i32, arg1 i32` |
 | 0x20 | CONFIG | hub → module | yes | `configVersion u32` + module-specific (§6) |
