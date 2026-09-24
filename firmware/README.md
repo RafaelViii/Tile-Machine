@@ -41,5 +41,18 @@ tile for that module lights up within a few seconds.
 sketch). It holds relays OFF and servo outputs disabled, so the machine won't run until the real
 module firmware (Phases 3–5) is flashed.
 
+**Upload fails with `Wrong boot mode detected (0x13)`?** That board's USB auto-download circuit
+only drives reset, not GPIO0. This is the case for the Shredder board (esp1, COM8 on the dev PC). Start
+the upload with retries, then **hold BOOT for ~5 s** while it retries:
+```
+python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32 --port COM8 --baud 460800 \
+  --before default_reset --after hard_reset --connect-attempts 0 write_flash -z --flash_mode dio \
+  --flash_freq 40m --flash_size detect 0x1000 .pio/build/<env>/bootloader.bin \
+  0x8000 .pio/build/<env>/partitions.bin \
+  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+  0x10000 .pio/build/<env>/firmware.bin
+```
+(Or simply hold BOOT while `pio run -t upload` prints `Connecting...`.)
+
 **Reset pairing**: hold the hub's **BOOT** button for 5 s while it runs. It forgets all modules and
 restarts, and the modules re-pair on their own.

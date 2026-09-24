@@ -134,7 +134,8 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [x] Phase 2: hub → RTDB (batched state/presence/events, config polling + push, `/commands` stream).
       **Verified on the real hub (COM7)**: steady `lastSeen` < 11 s, STOP ALL round trip about 125 ms.
       See docs/modules/hub.md for the HTTPClient-blocking and slow-DNS fixes.
-- [ ] Next: flash `firmware/linktest` on a module board → confirm its tile lights up on the web.
+- [x] Link test on the real Shredder board (COM8): paired with the hub 0.1 s after boot, got the RTC
+      clock, and Firebase shows it online. Auto-pairing is proven end to end.
 - [ ] Phase 3: Shredder firmware (manual/auto/off, passive buzzer, OLED, remote config + STOP)
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
