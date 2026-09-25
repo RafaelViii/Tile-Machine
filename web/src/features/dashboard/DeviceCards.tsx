@@ -1,7 +1,7 @@
 import { useState, type ComponentType, type ReactNode, type SVGProps } from 'react';
 import { Link } from 'react-router';
 import { ContainerIcon, HotpressIcon, HubIcon, ShredderIcon } from '../../components/icons';
-import { Badge, Card, CardTitle, Stat, StatusDot, cx } from '../../components/ui';
+import { Badge, Card, CardTitle, Stat, cx } from '../../components/ui';
 import { ago, faultList, uptime } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
 import type { ModuleId } from '../../shared/types/rtdb';
@@ -44,8 +44,7 @@ function DeviceRow({ Icon, name, esp, online, status, lastSeen, issue, children 
         onClick={() => setOpen(!open)}
         className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-2 py-3 text-left transition hover:bg-zinc-800/40"
       >
-        <StatusDot on={online} />
-        <Icon className="h-5 w-5 shrink-0 text-zinc-400" />
+        <Icon className={cx('h-5 w-5 shrink-0', online ? 'text-emerald-400' : 'text-zinc-500')} />
         <span className="font-medium">{name}</span>
         <span className="font-mono text-xs text-zinc-500">{esp}</span>
         <span className="ml-auto flex items-center gap-2">

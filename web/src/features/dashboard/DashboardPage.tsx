@@ -1,7 +1,7 @@
 import { Fragment, type ComponentType, type SVGProps } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, ContainerIcon, CuringIcon, DesignIcon, HotpressIcon, ShredderIcon } from '../../components/icons';
-import { Badge, Card, CardTitle, PageHeader, StatusDot, cx } from '../../components/ui';
+import { Badge, Card, CardTitle, PageHeader, cx } from '../../components/ui';
 import { humanize, kg } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
 import type { ModuleId } from '../../shared/types/rtdb';
@@ -95,9 +95,6 @@ function ProcessTile({ p, m }: { p: Process; m: MachineStatus }) {
       )}
     >
       <span className="absolute top-3 left-3 font-mono text-[10px] text-zinc-500">{p.esp}</span>
-      <span className="absolute top-3 right-3">
-        <StatusDot on={connected} />
-      </span>
       <p.Icon className={cx('h-10 w-10', connected ? 'text-emerald-300' : 'text-zinc-500')} />
       <div className="font-semibold">{p.name}</div>
       <div className={cx('text-xs font-medium', connected ? 'text-emerald-300' : 'text-zinc-500')}>

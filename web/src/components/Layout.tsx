@@ -80,7 +80,7 @@ export function Layout() {
   );
 }
 
-/** Quiet hub indicator at the end of the tab row: icon + dot (text in the tooltip); one red word only when offline. */
+/** Quiet hub indicator at the end of the tab row: the hub icon in the status colour (text in the tooltip); one red word only when offline. */
 function HubStatus({ online, loading }: { online: boolean; loading: boolean }) {
   const title = online
     ? 'Main hub online'
@@ -94,11 +94,10 @@ function HubStatus({ online, loading }: { online: boolean; loading: boolean }) {
       title={title}
       className={cx(
         'flex shrink-0 items-center gap-1.5 text-xs font-medium',
-        online ? 'text-zinc-400' : loading ? 'text-zinc-500' : 'text-red-400',
+        online ? 'text-emerald-400' : loading ? 'text-zinc-500' : 'text-red-400',
       )}
     >
-      <HubIcon className="h-3.5 w-3.5" />
-      <span className={cx('h-2 w-2 rounded-full', online ? 'bg-emerald-400' : loading ? 'bg-zinc-600' : 'bg-red-500')} />
+      <HubIcon className="h-4 w-4" />
       {!online && !loading && <span>Offline</span>}
     </span>
   );

@@ -44,21 +44,10 @@ export function Badge({ tone = 'zinc', children }: { tone?: Tone; children: Reac
   );
 }
 
-export function StatusDot({ on, pulse = true }: { on: boolean; pulse?: boolean }) {
-  return (
-    <span className="relative inline-flex h-2.5 w-2.5">
-      {on && pulse && <span className="dot-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400" />}
-      <span className={cx('relative inline-flex h-2.5 w-2.5 rounded-full', on ? 'bg-emerald-400' : 'bg-zinc-600')} />
-    </span>
-  );
-}
-
 export function ConnectionBadge({ connected, hubOnline }: { connected: boolean; hubOnline: boolean }) {
   if (connected)
     return (
-      <Badge tone="green">
-        <StatusDot on /> Connected
-      </Badge>
+      <Badge tone="green">Connected</Badge>
     );
   return <Badge tone="zinc">{hubOnline ? 'Not connected' : 'Hub offline'}</Badge>;
 }
