@@ -45,7 +45,7 @@ function toPage(snap: DataSnapshot, size: number) {
 }
 
 export function EventsPage() {
-  const [size, setSize] = useState<number>(50);
+  const [size, setSize] = useState<number>(25);
   // cursors[i] = where page i+2 starts (the oldest row of page i+1). Page 1 has no cursor.
   const [cursors, setCursors] = useState<Cursor[]>([]);
   const [rows, setRows] = useState<Row[] | undefined>(undefined);

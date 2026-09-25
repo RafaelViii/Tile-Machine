@@ -149,6 +149,6 @@ server filters and returns only one page):
   once** (`get`). Ties on `ts` are broken by key.
 - The extra (+1) row only says whether an older page exists, so nothing is ever counted.
 - RTDB has no offsets, so there's no "jump to page 7". Navigation is Newest / Newer / Older.
-- Page size 25/50/100. Verified with 179 events: pages 50/50/50/29, each shown exactly once, newest first.
+- Page size 25 (default)/50/100. Verified with 179 events: pages 50/50/50/29, each shown exactly once, newest first.
 - Possible next step: a server-side filter per module needs a combined field (e.g. `mts` =
   `module|ts`) written by the hub and indexed, because RTDB orders by one field per query.
