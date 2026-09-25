@@ -14,6 +14,10 @@ export interface HubNode {
   ip?: string;
   wifiRssi?: number;
   wifiChannel?: number;
+  /** Network the hub is on (hub fw >= 0.3.0). */
+  wifiSsid?: string;
+  /** Setup hotspot "TileHub-XXXX" open right now (hub fw >= 0.3.0). */
+  portal?: boolean;
   protocolVersion?: number;
   /** Where the hub's clock comes from right now. */
   timeSource?: 'ntp' | 'rtc' | 'none';

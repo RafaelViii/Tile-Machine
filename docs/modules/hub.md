@@ -4,9 +4,10 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
 
 ## Boot sequence
 
-1. Status LED slow blink. Load `secrets.h` (WiFi SSID/pass, Firebase API key, DB URL, hub
-   email/password).
-2. WiFi STA connect. Read the channel (`WiFi.channel()`).
+1. Status LED slow blink. Load `secrets.h` (Firebase API key, DB URL, hub email/password, hotspot
+   password) and the saved WiFi networks from NVS (seeded from `WIFI_SSID`/`WIFI_PASSWORD` the first time).
+2. Open the setup hotspot and connect to the first saved network (see "WiFi and setup hotspot").
+   Wait up to 20 s for WiFi, answering the setup page meanwhile. Read the channel (`WiFi.channel()`).
 3. `esp_now_init()`, register callbacks, add the broadcast peer, and add stored module peers from
    NVS.
 4. NTP time sync (for log timestamps). Firebase sign-in as the `hub` user.
@@ -68,18 +69,50 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
 | `/hub/lastSeen` + online modules' `presence/lastSeen` | 10 s |
 | Flush throttled `state` writes (latest STATUS per module) | 500 ms |
 | ACK/retry engine for CONFIG/COMMAND | 50 ms |
-| WiFi / Firebase reconnect with backoff | on failure |
+| WiFi reconnect (saved networks in turn), setup hotspot timers + web requests | continuous |
+| Firebase reconnect with backoff (5 s doubling to 60 s) | on failure |
 | Retention cleanup (events 30 d, commands 24 h) | boot + 24 h |
+
+## WiFi and setup hotspot (fw 0.3.0, src/wifimgr.cpp)
+
+- **Saved networks:** up to 5 in NVS (`wifinets`), the one that worked last is tried first. The first
+  boot seeds the list from `secrets.h`. Passwords are never sent to the setup page.
+- **Reconnect, never restart:** after a drop the hub retries after 1 s, then every 15 s through the
+  saved networks in turn, forever. The old "reboot after 10 min without WiFi" is gone: the setup
+  hotspot needs the hub running, and a retry recovers from the router's 2.4 GHz dropouts anyway.
+  Arduino auto-reconnect is off: the hub owns the retries.
+- **Setup hotspot** `TileHub-XXXX` (last 4 hex digits of the MAC), WPA2 with `PORTAL_PASSWORD`,
+  captive page at http://192.168.4.1 (phones open it by themselves after joining).
+
+| When | Hotspot |
+|---|---|
+| Every boot (power-on, EN/reset button) | opens, closes after 3 min without use |
+| Short BOOT press (< 1.5 s) | opens without restarting, same 3-min rule |
+| Offline for 30 s (no WiFi, or WiFi but no cloud) | opens and stays open while offline; once back online the 3-min rule applies |
+
+  "Use" = any request from the setup page (it polls every 2 s while open) or a phone joining.
+- **Setup page:** status, saved networks (forget), scan, connect to a new network. A new network is
+  tested for 20 s: if it connects it becomes first choice, if not the page shows why (wrong
+  password, not found) and offers "Save anyway", and the hub goes back to its saved networks.
+- **One radio:** the hotspot always sits on the router's channel (or the last known one while
+  offline), so ESP-NOW modules keep working while it is open. While a phone is on the hotspot the
+  hub only retries the last network on that channel, so the hotspot doesn't jump and drop the phone.
+  Connecting to a network on another channel moves the hotspot: the phone rejoins, and the modules
+  re-scan and re-pair by themselves.
+- **LED:** slow blink = WiFi connecting, fast blink = cloud problem, solid = all good, double blink
+  = all good and setup hotspot open.
+- Reported in `/hub`: `wifiSsid` (network) and `portal` (hotspot open), shown on the Dashboard.
 
 ## Registry (NVS)
 
 `moduleId → {mac, lastConfigVersionAcked}`. A HELLO from a new MAC for a known moduleId replaces
-the entry (`MODULE_REPLACED`). Holding the BOOT button for 5 s clears the registry.
+the entry (`MODULE_REPLACED`). Holding the BOOT button for 5 s clears the registry (a short press opens the setup hotspot).
 
 ## Important implementation notes
 
 - ESP-NOW callbacks run in the WiFi task. They must copy the packet into a FreeRTOS queue and
   return. **No Firebase calls inside callbacks.**
-- The hub can never change channel (it's bound to the router). The modules follow the hub.
+- The hub can never change channel (it's bound to the router). The modules follow the hub, also
+  when the hub moves to another network from the setup page.
 - The ESP32 has one radio, so WiFi traffic and ESP-NOW share airtime. Keep Firebase writes
   throttled as specified.

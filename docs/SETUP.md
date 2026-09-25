@@ -39,7 +39,10 @@ Project: **`tile-machine-92345`**, Realtime Database in **asia-southeast1**.
 6. ✅ Web app registered. The config is in `web/.env.local` (git-ignored, template
    `web/.env.example`). Analytics is not used.
 7. Copy the **Web API key** and **Database URL** into `firmware/hub/include/secrets.h` (template:
-   `secrets.example.h`, created in Phase 1), together with the hub email/password and your WiFi.
+   `secrets.example.h`, created in Phase 1), together with the hub email/password, your WiFi and a `PORTAL_PASSWORD` (8+ characters) for the
+   hub's setup hotspot. The WiFi in `secrets.h` is only the first saved network: later networks
+   are added from the setup hotspot `TileHub-XXXX` (open for 3 min after every restart, or press
+   BOOT briefly), see docs/modules/hub.md "WiFi and setup hotspot".
 8. ✅ Rules deployed and checked: an anonymous user is blocked, the hub can write `/hub` and read
    `/modules`, and the hub can't write config or change roles. To redeploy after editing
    `firebase/database.rules.json` (the CLI is already logged in as the admin Google account):

@@ -51,6 +51,8 @@ char bootTag[9];
 String streamToken;
 volatile uint32_t tokenGen = 0;
 volatile bool haveToken = false;  // cleared by either task to force a new sign-in
+volatile bool pollCmds = false;   // setup hotspot open: poll /commands instead of streaming
+uint32_t lastCmdPollMs = 0;
 
 // ---------------- cloud-task-only state ----------------
 String dbUrl;   // https://host (no trailing slash)
@@ -341,6 +343,24 @@ void pollConfigs() {
   }
 }
 
+// ---------------- /commands polling (while the setup hotspot is open) ----------------
+void handleNode(const String* segs, int n, JsonVariantConst v);
+
+void pollCommands() {
+  String resp;
+  const int code = request("GET", url("commands"), "", &resp);
+  if (code != 200) {
+    if (isTokenExpired(code, resp)) haveToken = false;
+    if (code < 0 || code >= 500) setOnline(false);
+    return;
+  }
+  setOnline(true);
+  JsonDocument doc;
+  if (deserializeJson(doc, resp) || doc.isNull()) return;
+  String none[1];
+  handleNode(none, 0, doc.as<JsonVariantConst>());  // same checks as the stream: age, duplicates
+}
+
 // ---------------- /commands stream ----------------
 void closeStream() {
   streamTls.stop();
@@ -510,7 +530,7 @@ void streamTask(void*) {
   uint8_t buf[512];
   for (;;) {
     // Only after NTP sync, so every command's age can be checked (no replays of old commands).
-    if (WiFi.status() != WL_CONNECTED || !timeSynced() || !haveToken || tokenGen == 0 ||
+    if (pollCmds || WiFi.status() != WL_CONNECTED || !timeSynced() || !haveToken || tokenGen == 0 ||
         (int32_t)(millis() - streamRetryAtMs) < 0) {
       vTaskDelay(pdMS_TO_TICKS(500));
       continue;
@@ -527,7 +547,7 @@ void streamTask(void*) {
       continue;
     }
 
-    while (streaming && gen == tokenGen && WiFi.status() == WL_CONNECTED) {
+    while (streaming && gen == tokenGen && WiFi.status() == WL_CONNECTED && !pollCmds) {
       int n = streamTls.read(buf, sizeof(buf));  // blocks until data or timeout
       if (n <= 0) {
         if (!streamTls.connected()) {
@@ -557,6 +577,7 @@ void streamTask(void*) {
         }
       }
     }
+    if (pollCmds) Serial.println("[NET] setup hotspot open: command stream paused, polling commands every second");
     closeStream();
     if ((int32_t)(millis() - streamRetryAtMs) >= 0) streamRetryAtMs = millis() + 2000;
   }
@@ -632,6 +653,10 @@ void task(void*) {
       TIMED("flush", flushPending());
     }
     TIMED("statuses", flushStatuses());
+    if (pollCmds && timeSynced() && now - lastCmdPollMs >= CLOUD_CMD_POLL_MS) {
+      lastCmdPollMs = now;
+      TIMED("commands", pollCommands());
+    }
     if (now - lastPollMs >= CLOUD_CONFIG_POLL_MS) {
       lastPollMs = now;
       TIMED("poll", pollConfigs());
@@ -644,6 +669,12 @@ void task(void*) {
 }  // namespace
 
 // ---------------- public API ----------------
+void setPollCommands(bool on) {
+  if (pollCmds == on) return;
+  pollCmds = on;
+  if (!on) Serial.println("[NET] setup hotspot closed: back to the command stream");
+}
+
 void begin() {
   mtx = xSemaphoreCreateMutex();
   cmdQueue = xQueueCreate(8, sizeof(Command));

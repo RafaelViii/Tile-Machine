@@ -22,7 +22,7 @@
 #include "config.h"
 #include "pins.h"
 #include "rtc.h"
-#include "secrets.h"
+#include "wifimgr.h"
 
 using namespace tile;
 
@@ -225,7 +225,11 @@ void writeHubFields(bool full) {
   cloud::set("hub/wifiRssi", d.as<JsonVariantConst>());
   d.set(WiFi.channel());
   cloud::set("hub/wifiChannel", d.as<JsonVariantConst>());
+  d.set(net::portalOpen());
+  cloud::set("hub/portal", d.as<JsonVariantConst>());
   if (!full) return;
+  d.set(net::currentSsid());
+  cloud::set("hub/wifiSsid", d.as<JsonVariantConst>());
   d.set(timeSourceName());
   cloud::set("hub/timeSource", d.as<JsonVariantConst>());
   d.set(rtc::statusName(rtcStatus));
@@ -578,7 +582,10 @@ void setLed(bool on) { digitalWrite(PIN_STATUS_LED, (on ^ STATUS_LED_ACTIVE_LOW)
 void updateLed() {
   const uint32_t now = millis();
   bool on;
-  if (WiFi.status() != WL_CONNECTED) on = (now / 500) % 2;  // slow blink: WiFi connecting
+  const uint32_t ph = now % 1000;
+  if (net::portalOpen() && WiFi.status() == WL_CONNECTED && cloud::online())
+    on = ph < 100 || (ph >= 200 && ph < 300);               // double blink: setup hotspot open, all good
+  else if (WiFi.status() != WL_CONNECTED) on = (now / 500) % 2;  // slow blink: WiFi connecting
   else if (!cloud::online()) on = (now / 125) % 2;          // fast blink: Firebase problem
   else on = true;                                            // solid: all good
   if ((int32_t)(flickerUntilMs - now) > 0) on = !on;         // short flicker per ESP-NOW packet
@@ -587,6 +594,7 @@ void updateLed() {
 
 uint32_t bootPressedSinceMs = 0;
 
+/** BOOT: short press opens the setup hotspot, holding 5 s clears module pairings. */
 void checkBootButton() {
   if (digitalRead(PIN_BOOT_BUTTON) == LOW) {
     if (!bootPressedSinceMs) bootPressedSinceMs = millis();
@@ -596,65 +604,26 @@ void checkBootButton() {
       delay(100);
       ESP.restart();
     }
-  } else {
-    bootPressedSinceMs = 0;
-  }
-}
-
-// ---------------- WiFi diagnostics ----------------
-const char* wifiReason(uint8_t r) {
-  switch (r) {
-    case 2: return "auth expired";
-    case 15: return "4-way handshake timeout (WRONG PASSWORD?)";
-    case 201: return "network not found (check WIFI_SSID spelling/capitals, 2.4 GHz only)";
-    case 202: return "authentication failed (WRONG PASSWORD?)";
-    case 203: return "association failed";
-    case 204: return "handshake timeout (WRONG PASSWORD?)";
-    case 200: return "beacon timeout (weak signal / router off)";
-    case 8: return "left network";
-  }
-  return "see esp_wifi_types.h";
-}
-
-uint32_t lastWifiReasonLogMs = 0;
-
-void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
-  if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
-    // Some routers answer DNS very slowly (7 s measured on the first install), which stalls every
-    // new HTTPS connection. Use Google DNS first, keep the router's DNS as fallback.
-    IPAddress router = WiFi.dnsIP(0);
-    ip_addr_t primary = IPADDR4_INIT_BYTES(8, 8, 8, 8);
-    ip_addr_t fallback = IPADDR4_INIT((uint32_t)router);
-    dns_setserver(0, &primary);
-    dns_setserver(1, &fallback);
     return;
   }
-  if (event != ARDUINO_EVENT_WIFI_STA_DISCONNECTED) return;
-  const uint8_t r = info.wifi_sta_disconnected.reason;
-  if (millis() - lastWifiReasonLogMs < 5000) return;  // WiFi retries fast; don't flood the log
-  lastWifiReasonLogMs = millis();
-  Serial.printf("\n[ERROR] WiFi disconnected, reason %u: %s\n", r, wifiReason(r));
+  const uint32_t held = bootPressedSinceMs ? millis() - bootPressedSinceMs : 0;
+  bootPressedSinceMs = 0;
+  if (held >= 50 && held < BOOT_BUTTON_SHORT_MAX_MS) {
+    Serial.println("[STATE] BOOT pressed: opening the setup hotspot");
+    net::openPortal(net::PortalReason::Button);
+  }
 }
 
-/** After a failed connect: is the SSID visible? Catches capitalization typos and 5 GHz-only names. */
-void diagnoseWifi() {
-  Serial.println("[NET] scanning to diagnose WiFi...");
-  const int n = WiFi.scanNetworks();
-  bool exact = false;
-  for (int i = 0; i < n; i++) {
-    const String s = WiFi.SSID(i);
-    if (s == WIFI_SSID) {
-      exact = true;
-      Serial.printf("[NET] '%s' found: channel %d, signal %d dBm -> SSID is right, check the PASSWORD\n", s.c_str(),
-                    WiFi.channel(i), WiFi.RSSI(i));
-    } else if (s.equalsIgnoreCase(WIFI_SSID)) {
-      Serial.printf("[ERROR] '%s' not found, but '%s' exists: WIFI_SSID is case-sensitive, fix secrets.h\n", WIFI_SSID,
-                    s.c_str());
-    }
-  }
-  if (!exact) Serial.printf("[ERROR] '%s' is not visible (%d networks seen). Check spelling, and that it's 2.4 GHz\n",
-                            WIFI_SSID, n);
-  WiFi.scanDelete();
+// ---------------- WiFi ----------------
+void onWifiEvent(arduino_event_id_t event, arduino_event_info_t) {
+  if (event != ARDUINO_EVENT_WIFI_STA_GOT_IP) return;
+  // Some routers answer DNS very slowly (7 s measured on the first install), which stalls every
+  // new HTTPS connection. Use Google DNS first, keep the router's DNS as fallback.
+  IPAddress router = WiFi.dnsIP(0);
+  ip_addr_t primary = IPADDR4_INIT_BYTES(8, 8, 8, 8);
+  ip_addr_t fallback = IPADDR4_INIT((uint32_t)router);
+  dns_setserver(0, &primary);
+  dns_setserver(1, &fallback);
 }
 
 const char* resetReasonName(esp_reset_reason_t r) {
@@ -673,42 +642,13 @@ const char* resetReasonName(esp_reset_reason_t r) {
   }
 }
 
-uint32_t wifiDownSinceMs = 0;
-uint32_t wifiLastRetryMs = 0;
-
-/** Keeps retrying WiFi ourselves; reboots the hub if it stays down too long. */
-void wifiWatchdog() {
-  const uint32_t now = millis();
-  if (WiFi.status() == WL_CONNECTED) {
-    if (wifiDownSinceMs) {
-      Serial.printf("[NET] WiFi back after %lu s\n", (unsigned long)((now - wifiDownSinceMs) / 1000));
-      wifiDownSinceMs = 0;
-    }
-    return;
-  }
-  if (!wifiDownSinceMs) {
-    wifiDownSinceMs = now;
-    wifiLastRetryMs = now;
-    return;
-  }
-  if (now - wifiDownSinceMs >= WIFI_REBOOT_AFTER_MS) {
-    Serial.println("[ERROR] WiFi down for 10 min: restarting the hub (modules keep running and will re-pair)");
-    delay(100);
-    ESP.restart();
-  }
-  if (now - wifiLastRetryMs >= WIFI_RETRY_EVERY_MS) {
-    wifiLastRetryMs = now;
-    Serial.printf("[NET] WiFi down %lu s, retrying '%s'\n", (unsigned long)((now - wifiDownSinceMs) / 1000), WIFI_SSID);
-    WiFi.disconnect();
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  }
-}
-
 uint32_t lastPresenceMs = 0, lastPushMs = 0, lastReportMs = 0;
 
 void printReport() {
-  Serial.printf("[STATE] WiFi %s ch %u rssi %d | Firebase %s | modules:", WiFi.status() == WL_CONNECTED ? "up" : "DOWN",
-                radioChannel(), WiFi.RSSI(), cloud::online() ? "online" : "OFFLINE");
+  Serial.printf("[STATE] WiFi %s ch %u rssi %d | Firebase %s | hotspot %s | heap %u (block %u) | modules:",
+                WiFi.status() == WL_CONNECTED ? "up" : "DOWN", radioChannel(), WiFi.RSSI(),
+                cloud::online() ? "online" : "OFFLINE", net::portalOpen() ? "open" : "off", ESP.getFreeHeap(),
+                ESP.getMaxAllocHeap());
   for (uint8_t id = 1; id < MODULE_ID_COUNT; id++)
     Serial.printf(" %s=%s", moduleKey((ModuleId)id), mods[id].online ? "ON" : "off");
   if (transport.rxDropped()) Serial.printf(" | rx dropped %lu", (unsigned long)transport.rxDropped());
@@ -730,24 +670,19 @@ void setup() {
 
   initClock();  // DS3231 first: correct time before WiFi, even with no internet
 
-  WiFi.onEvent(onWifiEvent);  // before begin(), so the first GOT_IP already switches DNS
-  WiFi.mode(WIFI_STA);
-  WiFi.setAutoReconnect(true);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.printf("[NET] connecting to WiFi '%s'", WIFI_SSID);
+  WiFi.onEvent(onWifiEvent);  // before connecting, so the first GOT_IP already switches DNS
+  net::begin();               // saved networks + setup hotspot (open for 3 min after every boot)
   const uint32_t t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < WIFI_BOOT_WAIT_MS) {
+  while (!net::connected() && millis() - t0 < WIFI_BOOT_WAIT_MS) {
+    net::loop(false);  // the setup page already answers while we wait
     setLed((millis() / 500) % 2);
-    delay(100);  // setup only: ESP-NOW isn't running yet
-    Serial.print('.');
+    delay(20);  // setup only: ESP-NOW isn't running yet
   }
-  Serial.println();
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("[NET] WiFi connected, IP %s, channel %u\n", WiFi.localIP().toString().c_str(), WiFi.channel());
+  if (net::connected()) {
+    Serial.printf("[NET] WiFi '%s' connected, IP %s, channel %u\n", WiFi.SSID().c_str(),
+                  WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
-    diagnoseWifi();
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);  // keep trying in the background
-    Serial.println("[ERROR] WiFi not connected yet: running ESP-NOW anyway, Firebase will follow when WiFi is up");
+    Serial.println("[ERROR] WiFi not connected yet: running ESP-NOW anyway, retrying in the background");
   }
 
   if (!transport.begin(24)) {
@@ -787,7 +722,8 @@ void loop() {
     lastPushMs = now;
     pushConfigs();
   }
-  wifiWatchdog();
+  net::loop(cloud::online());
+  cloud::setPollCommands(net::portalOpen());  // the hotspot needs the stream's memory
   serviceClock();
   serviceTimeBroadcast();
   syncCloud();

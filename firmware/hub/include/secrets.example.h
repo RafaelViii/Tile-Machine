@@ -12,3 +12,7 @@
 // Hub account (Firebase Auth user with roles/<uid> = "hub")
 #define HUB_EMAIL        "hub@tile-machine.local"
 #define HUB_PASSWORD     "hub-account-password"
+
+// Setup hotspot "TileHub-XXXX" (WPA2 password, 8-63 characters). Anyone with it can change the
+// hub's WiFi, so pick your own.
+#define PORTAL_PASSWORD  "choose-a-password"

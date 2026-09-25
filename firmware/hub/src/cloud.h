@@ -5,7 +5,9 @@
 //    overlap (RTDB rejects "a" together with "a/b").
 //  - Command status updates go in separate requests: if a command was deleted meanwhile, that write
 //    fails on its own instead of taking the whole batch down.
-//  - /commands is streamed (fast STOP). Module configs are polled by version.
+//  - /commands is streamed (fast STOP). Module configs are polled by version. While the setup hotspot
+//    is open, /commands is polled every second instead: the hotspot needs the memory of one TLS
+//    connection (see setPollCommands).
 //  - The stream only opens after NTP sync, so command age can always be checked (no replays).
 //
 // All functions below are thread-safe and non-blocking.
@@ -51,6 +53,10 @@ void pushEvent(const char* module, const char* code, int32_t arg0 = 0, int32_t a
 
 /** Separate write of commands/{mkey}/{id}/{status, updatedAt}. */
 void setCommandStatus(const char* mkey, const char* id, const char* status);
+
+/** true: close the command stream and poll /commands every CLOUD_CMD_POLL_MS over the write
+ *  connection (frees ~55 KB for the setup hotspot). false: back to the stream. */
+void setPollCommands(bool on);
 
 /** Next command from /commands to execute (already checked for age and duplicates). */
 bool nextCommand(Command& out);

@@ -149,7 +149,12 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [~] Phase 4: Hotpress firmware (firmware/hotpress, fw 0.1.4 on the board, integrating ON-button filter + noise monitor (fault bit 2), debounce adjustable from the web, default 200/150 ms; ON button chatters when pressed, RC filter recommended) on the real board (COM9, auto-upload works, no BOOT needed): 2x SSR-25-DA (HIGH = ON), per-output power-up interlock (OFF/middle held 1 s), web STOP latch per output, OLED + self-test, paired with hub. **Hand test pending.**
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
-- [ ] Phase 7: Hardening: ESP-NOW encryption, WiFi provisioning portal, OTA
+- [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):
+      up to 5 saved networks, reconnects forever without restarting (the 10-min WiFi reboot is gone), hotspot
+      `TileHub-XXXX` (password `PORTAL_PASSWORD` in secrets.h) at every boot / short BOOT press (closes after
+      3 min unused) and after 30 s offline (stays open until back online). While it is open, /commands is
+      polled every 1 s instead of streamed (hotspot + 2 TLS connections didn't fit in RAM: writes failed).
+      Tested on the real hub from the PC's WiFi. Still to do: ESP-NOW encryption, OTA.
 
 ## 9. Open questions / pending decisions
 

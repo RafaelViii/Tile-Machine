@@ -25,6 +25,8 @@ while the hub doesn't know the time.
     "ip": "192.168.1.50",
     "wifiRssi": -58,
     "wifiChannel": 6,
+    "wifiSsid": "speedxfiber_2.4Ghz",   // network the hub is on (fw 0.3.0+)
+    "portal": false,                    // setup hotspot open (fw 0.3.0+), refreshed every 10 s
     "protocolVersion": 1,
     "timeSource": "ntp" | "rtc" | "none",        // where the hub clock currently comes from
     "rtc": "ok" | "lost-power" | "missing"        // DS3231 state

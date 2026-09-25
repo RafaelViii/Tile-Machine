@@ -87,6 +87,8 @@ function hubRow(m: MachineStatus) {
         <p className="text-sm text-zinc-400">The hub hasn't reported yet. Once it's on WiFi it appears here.</p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Network" value={hub.wifiSsid || '—'} />
+          <Stat label="Setup hotspot" value={hub.portal ? 'Open' : 'Off'} tone={hub.portal ? 'sky' : undefined} />
           <Stat label="Up since" value={hub.bootAt ? uptime(Math.round((now - hub.bootAt) / 1000)) : '—'} />
           <Stat label="IP" value={hub.ip ?? '—'} />
           <Stat
