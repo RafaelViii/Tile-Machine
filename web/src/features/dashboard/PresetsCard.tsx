@@ -21,7 +21,7 @@ export function PresetsCard() {
   const total = changes.reduce((n, c) => n + c.rows.length, 0);
 
   return (
-    <Card className="mb-6">
+    <Card className="mt-6">
       <CardTitle>Machine presets</CardTitle>
       <p className="mb-4 max-w-2xl text-sm text-zinc-400">
         A preset holds every setting of the Shredder, Containing and Hot Press. Picking one only shows the changes

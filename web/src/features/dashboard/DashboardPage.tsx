@@ -132,9 +132,9 @@ export function DashboardPage() {
         </div>
       </Card>
 
-      <PresetsCard />
-
       <DeviceCards />
+
+      <PresetsCard />
     </>
   );
 }
