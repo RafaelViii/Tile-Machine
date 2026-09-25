@@ -5,6 +5,7 @@ import { useMachine } from '../shared/machine';
 import { endPresence, setPresencePage, startPresence } from '../shared/presence';
 import { AccountMenu } from './AccountMenu';
 import { CommandButton } from './CommandButton';
+import { Footer } from './Footer';
 import { HubIcon, LogoMark } from './icons';
 import { cx } from './ui';
 
@@ -60,7 +61,7 @@ export function Layout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <header className="bar sticky top-0 z-30 border-b border-zinc-800 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <div className="flex items-center gap-2.5">
@@ -114,9 +115,10 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 }

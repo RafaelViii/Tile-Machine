@@ -7,16 +7,20 @@ import { MODULE_IDS } from '../shared/types/rtdb';
 import { CheckIcon, ChevronDown, PencilIcon, PresetIcon, TrashIcon } from './icons';
 import { Button, cx } from './ui';
 
+const PRESET_MENU_ROOM_PX = 320; // rough height of the open menu
+
 type Mode = { kind: 'list' } | { kind: 'new' } | { kind: 'rename'; id: string } | { kind: 'delete'; id: string };
 
 /**
  * Whole-machine preset picker (Dashboard). Picking one fills the Shredder, Containing and
  * Hot Press drafts; nothing reaches the machine until the changes are saved.
  */
-export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }) {
+/** placement 'auto' (default): opens downward, or upward when there isn't room below (like a Mac menu). */
+export function PresetMenu({ placement = 'auto' }: { placement?: 'up' | 'down' | 'auto' }) {
   const drafts = useConfigDrafts();
   const { presets, loading, create, overwrite, rename, remove } = usePresets();
   const [open, setOpen] = useState(false);
+  const [up, setUp] = useState(placement === 'up');
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +68,19 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => {
+          if (open) return close();
+          if (placement === 'auto' && box.current) {
+            // Down by default (the page can scroll, there's a footer below). Up only when it doesn't fit below
+            // AND it fits above without covering the sticky header.
+            const r = box.current.getBoundingClientRect();
+            const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
+            const below = window.innerHeight - r.bottom;
+            const above = r.top - headerBottom;
+            setUp(below < PRESET_MENU_ROOM_PX && above >= PRESET_MENU_ROOM_PX);
+          }
+          setOpen(true);
+        }}
         className="flex w-full items-center gap-2 rounded-lg bg-zinc-950 px-3 py-2 text-sm ring-1 ring-zinc-700 transition hover:ring-zinc-500 sm:w-80"
       >
         <PresetIcon className="h-4 w-4 shrink-0 text-zinc-400" />
@@ -82,7 +98,7 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
           role="menu"
           className={cx(
             'popover absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border p-1',
-            placement === 'up' ? 'bottom-full mb-2' : 'top-full mt-2',
+            up ? 'bottom-full mb-2' : 'top-full mt-2',
           )}
         >
           <div className="px-2.5 pt-1.5 pb-1 text-xs text-zinc-500">Presets</div>
