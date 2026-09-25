@@ -1,10 +1,9 @@
 import { useConfigDrafts } from '../shared/configDrafts';
 import type { SyncState } from '../shared/hooks/useConfigEditor';
 import type { ModuleId } from '../shared/types/rtdb';
-import { PresetMenu } from './PresetMenu';
 import { Badge, Button } from './ui';
 
-const syncBadge: Record<SyncState, { tone: 'green' | 'amber' | 'red' | 'zinc' | 'sky'; text: string }> = {
+export const syncBadge: Record<SyncState, { tone: 'green' | 'amber' | 'red' | 'zinc' | 'sky'; text: string }> = {
   never: { tone: 'zinc', text: 'Defaults (not saved yet)' },
   synced: { tone: 'green', text: 'Synced to module ✓' },
   pending: { tone: 'amber', text: 'Saved · waiting for module' },
@@ -12,9 +11,9 @@ const syncBadge: Record<SyncState, { tone: 'green' | 'amber' | 'red' | 'zinc' | 
   rejected: { tone: 'red', text: 'Module rejected this config' },
 };
 
-const NAMES: Record<ModuleId, string> = { shredder: 'Shredder', containing: 'Containing', hotpress: 'Hot Press' };
+export const MODULE_NAMES: Record<ModuleId, string> = { shredder: 'Shredder', containing: 'Containing', hotpress: 'Hot Press' };
 
-/** Preset picker + save / reset bar with this module's sync state. Saves every module with changes. */
+/** Save / reset bar with this module's sync state. Saves every module with changes (a Dashboard preset can change several). */
 export function ConfigBar({
   id,
   sync,
@@ -33,8 +32,7 @@ export function ConfigBar({
   const b = saving ? { tone: 'zinc' as const, text: 'Saving…' } : syncBadge[sync];
 
   return (
-    <div className="bar sticky bottom-3 z-20 mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 px-3 py-3 shadow-lg backdrop-blur sm:px-4">
-      <PresetMenu />
+    <div className="bar sticky bottom-3 z-20 mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 px-4 py-3 shadow-lg backdrop-blur">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
         <Badge tone={b.tone}>{b.text}</Badge>
         {version > 0 && <span className="font-mono">v{version}</span>}
@@ -42,7 +40,7 @@ export function ConfigBar({
         {dirty[id] && <span className="text-amber-300">Unsaved changes</span>}
         {others.length > 0 && (
           <span className="text-amber-300">
-            {dirty[id] ? 'also' : 'Unsaved'} in {others.map((m) => NAMES[m]).join(', ')}
+            {dirty[id] ? 'also' : 'Unsaved'} in {others.map((m) => MODULE_NAMES[m]).join(', ')}
           </span>
         )}
         {error && <span className="text-red-400">Save failed: {error}</span>}

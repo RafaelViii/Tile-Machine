@@ -97,9 +97,11 @@ export function ConfigDraftsProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  // Back to what the machine uses; the picker then shows a preset only if one matches it exactly.
   const reset = useCallback(() => {
     setDrafts({});
     setError(null);
+    setPresetId(null);
   }, []);
 
   const saveAll = useCallback(async () => {

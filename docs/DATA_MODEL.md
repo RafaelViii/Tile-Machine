@@ -137,9 +137,10 @@ while the hub doesn't know the time.
 
 ## Presets (web only)
 
-A preset is a named copy of all three module configs. The hub never reads `/presets`. Picking a
-preset only fills the forms in the browser; the admin then presses Save, which writes each changed
-`modules/{id}/config` with a new `version` as usual. So a preset can never bypass the normal
+A preset is a named copy of all three module configs, managed on the web **Dashboard** ("Machine
+presets"). The hub never reads `/presets`. Picking a preset only loads it into the browser's
+unsaved drafts and lists every value that would change (old → new); the admin then presses **Save to
+machine**, which writes each changed `modules/{id}/config` with a new `version` as usual. So a preset can never bypass the normal
 versioned config path or the module's apply-when-idle rule. A missing module or field in a preset
 falls back to the defaults (`normalizeConfig`), so presets saved before a new field existed still load.
 

@@ -10,10 +10,10 @@ import { Button, cx } from './ui';
 type Mode = { kind: 'list' } | { kind: 'new' } | { kind: 'rename'; id: string } | { kind: 'delete'; id: string };
 
 /**
- * Whole-machine presets. Picking one fills the Shredder, Containing and Hot Press forms;
- * nothing reaches the machine until the config is saved.
+ * Whole-machine preset picker (Dashboard). Picking one fills the Shredder, Containing and
+ * Hot Press drafts; nothing reaches the machine until the changes are saved.
  */
-export function PresetMenu() {
+export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }) {
   const drafts = useConfigDrafts();
   const { presets, loading, create, overwrite, rename, remove } = usePresets();
   const [open, setOpen] = useState(false);
@@ -59,16 +59,16 @@ export function PresetMenu() {
     presets.some((p) => p.id !== except && p.name.trim().toLowerCase() === name.trim().toLowerCase());
 
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative w-full sm:w-auto">
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => (open ? close() : setOpen(true))}
-        className="inline-flex max-w-[16rem] items-center gap-2 rounded-lg bg-zinc-950 px-3 py-2 text-sm ring-1 ring-zinc-700 transition hover:ring-zinc-500"
+        className="flex w-full items-center gap-2 rounded-lg bg-zinc-950 px-3 py-2 text-sm ring-1 ring-zinc-700 transition hover:ring-zinc-500 sm:w-80"
       >
         <PresetIcon className="h-4 w-4 shrink-0 text-zinc-400" />
-        <span className="truncate">
+        <span className="min-w-0 flex-1 truncate text-left">
           {active ? active.name : <span className="text-zinc-400">No preset</span>}
         </span>
         {edited && (
@@ -82,15 +82,12 @@ export function PresetMenu() {
       {open && (
         <div
           role="menu"
-          className="popover absolute bottom-full left-0 z-40 mb-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border p-2"
+          className={cx(
+            'popover absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border p-2',
+            placement === 'up' ? 'bottom-full mb-2' : 'top-full mt-2',
+          )}
         >
-          <div className="px-2 pt-1 pb-2">
-            <div className="text-xs font-semibold tracking-wide text-zinc-300 uppercase">Machine presets</div>
-            <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-              A preset holds Shredder, Containing and Hot Press settings. Picking one fills the forms; nothing
-              is sent until you save.
-            </p>
-          </div>
+          <div className="px-2 pt-1 pb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">Presets</div>
 
           <ul className="max-h-64 overflow-y-auto">
             {loading && <li className="px-2 py-2 text-sm text-zinc-500">Loading…</li>}

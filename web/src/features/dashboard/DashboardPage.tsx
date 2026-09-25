@@ -6,6 +6,7 @@ import { humanize, kg } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
 import type { ModuleId } from '../../shared/types/rtdb';
 import { DeviceCards } from './DeviceCards';
+import { PresetsCard } from './PresetsCard';
 
 interface Process {
   name: string;
@@ -130,6 +131,8 @@ export function DashboardPage() {
           ))}
         </div>
       </Card>
+
+      <PresetsCard />
 
       <DeviceCards />
     </>
