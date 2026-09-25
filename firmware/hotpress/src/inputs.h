@@ -1,112 +1,66 @@
-// Debounced state inputs: the latching ON button and the 3-way selector.
+// Hot Press inputs: the latching ON button and the 3-way selector.
+// Both use the shared integrating filter (lib/TileIO/Debounce.h): the hardware test showed heavy
+// contact chatter (1000-2000 edges/s) while they are operated.
 #pragma once
 
 #include <Arduino.h>
+#include <Debounce.h>
 #include <TileProtocol.h>
 
-/** A value that only changes after the raw reading has been stable for `settleMs`. */
-template <typename T>
-class Settled {
- public:
-  void begin(T initial, uint32_t settleMs) {
-    stable_ = last_ = initial;
-    settleMs_ = settleMs;
-    changedMs_ = millis();
-  }
-  /** Feed the raw reading; returns true when the settled value changed. */
-  bool feed(T raw) {
-    if (raw != last_) {
-      last_ = raw;
-      changedMs_ = millis();
-    }
-    if (millis() - changedMs_ >= settleMs_ && raw != stable_) {
-      stable_ = raw;
-      return true;
-    }
-    return false;
-  }
-  T value() const { return stable_; }
-  void setSettle(uint32_t ms) { settleMs_ = ms; }
-
- private:
-  T stable_{}, last_{};
-  uint32_t settleMs_ = 60, changedMs_ = 0;
-};
-
-/**
- * Latching ON button with an INTEGRATING filter, sampled once per millisecond: +1 while the pin
- * reads pressed, -1 while released, clamped to [0, debounceMs]. ON when the score reaches the top,
- * OFF when it reaches 0. Unlike a restart-on-change timer, short noise spikes only nudge the score:
- * a real press still gets through (slower if noisy), and noise alone can't reach the top unless it
- * dominates for the whole debounce time.
- */
 class OnButton {
  public:
-  void begin(uint8_t pin, uint32_t debounceMs) {
+  void begin(uint8_t pin, uint32_t windowMs) {
     pin_ = pin;
     pinMode(pin_, INPUT_PULLUP);
-    max_ = debounceMs ? debounceMs : 1;
-    on_ = raw();
-    score_ = on_ ? max_ : 0;
-    lastMs_ = millis();
+    f_.begin(raw(), windowMs);
   }
   /** Returns true when the filtered state changed. */
-  bool update() {
-    const uint32_t now = millis();
-    uint32_t steps = now - lastMs_;
-    if (!steps) return false;
-    lastMs_ = now;
-    if (steps > max_) steps = max_;
-    const bool r = raw();
-    for (uint32_t i = 0; i < steps; i++) {
-      if (r) {
-        if (score_ < max_) score_++;
-      } else if (score_) {
-        score_--;
-      }
-    }
-    const bool before = on_;
-    if (score_ >= max_) on_ = true;
-    else if (score_ == 0) on_ = false;
-    return on_ != before;
-  }
-  bool on() const { return on_; }
-  void setDebounce(uint32_t ms) {
-    const uint32_t m = ms ? ms : 1;
-    score_ = on_ ? m : 0;  // keep the current state, rescale
-    max_ = m;
-  }
+  bool update() { return f_.update(raw()); }
+  bool on() const { return f_.value(); }
+  void setDebounce(uint32_t ms) { f_.setWindow(ms); }
 
  private:
   bool raw() const { return digitalRead(pin_) == LOW; }
   uint8_t pin_ = 0;
-  uint32_t max_ = 200, score_ = 0, lastMs_ = 0;
-  bool on_ = false;
+  IntegratingFilter f_;
 };
 
-/** Selector on two pull-up pins: LEFT, RIGHT, neither = NEUTRAL; both LOW = wiring fault -> NEUTRAL. */
+/** Selector on two pull-up pins: LEFT, RIGHT, neither = NEUTRAL; both closed = wiring fault -> NEUTRAL. */
 class SelectorSwitch {
  public:
-  void begin(uint8_t pinLeft, uint8_t pinRight, uint32_t settleMs) {
+  void begin(uint8_t pinLeft, uint8_t pinRight, uint32_t windowMs) {
     pl_ = pinLeft;
     pr_ = pinRight;
     pinMode(pl_, INPUT_PULLUP);
     pinMode(pr_, INPUT_PULLUP);
-    s_.begin(raw(), settleMs);
+    fl_.begin(digitalRead(pl_) == LOW, windowMs);
+    fr_.begin(digitalRead(pr_) == LOW, windowMs);
+    pos_ = compute();
   }
-  bool update() { return s_.feed(raw()); }
-  tile::Selector position() const { return s_.value(); }
-  void setDebounce(uint32_t ms) { s_.setSettle(ms); }
-  bool wiringFault() const { return digitalRead(pl_) == LOW && digitalRead(pr_) == LOW; }
+  /** Returns true when the filtered position changed. */
+  bool update() {
+    fl_.update(digitalRead(pl_) == LOW);
+    fr_.update(digitalRead(pr_) == LOW);
+    const tile::Selector p = compute();
+    if (p == pos_) return false;
+    pos_ = p;
+    return true;
+  }
+  tile::Selector position() const { return pos_; }
+  void setDebounce(uint32_t ms) {
+    fl_.setWindow(ms);
+    fr_.setWindow(ms);
+  }
+  bool wiringFault() const { return fl_.value() && fr_.value(); }
 
  private:
-  tile::Selector raw() const {
-    const bool l = digitalRead(pl_) == LOW;
-    const bool r = digitalRead(pr_) == LOW;
+  tile::Selector compute() const {
+    const bool l = fl_.value(), r = fr_.value();
     if (l && !r) return tile::Selector::LEFT;
     if (r && !l) return tile::Selector::RIGHT;
     return tile::Selector::NEUTRAL;
   }
   uint8_t pl_ = 0, pr_ = 0;
-  Settled<tile::Selector> s_;
+  IntegratingFilter fl_, fr_;
+  tile::Selector pos_ = tile::Selector::NEUTRAL;
 };

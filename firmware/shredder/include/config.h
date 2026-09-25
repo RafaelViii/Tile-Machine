@@ -4,10 +4,10 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 2);
+constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 3);
 
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;           // integrating filter window (START / STOP)
-constexpr uint32_t SWITCH_SETTLE_MS = 60;         // 3-way switch must be stable this long
+constexpr uint32_t SWITCH_SETTLE_MS = 100;        // 3-way switch contacts: integrating filter window
 // Power-up interlock: after every boot the switch must read OFF *continuously* this long before
 // the shredder unlocks. A single first reading is not trusted: on the real board it read OFF for
 // an instant at power-up while the switch was on AUTO, which bypassed the interlock.
