@@ -4,39 +4,51 @@
 #include <Arduino.h>
 #include <TileProtocol.h>
 
-/** Momentary button. `activeHigh` = pressed when the pin reads HIGH (normally-closed wiring). */
+/**
+ * Momentary button with an INTEGRATING filter sampled once per ms: +1 while the pin reads pressed,
+ * -1 while released, clamped to [0, debounceMs]; pressed at the top, released at 0. Contact chatter
+ * and noise spikes only nudge the score (a restart-on-change timer can be fooled or starved by
+ * them). `activeHigh` = pressed when the pin reads HIGH (normally-closed wiring).
+ */
 class Button {
  public:
   void begin(uint8_t pin, bool activeHigh, uint32_t debounceMs) {
     pin_ = pin;
     activeHigh_ = activeHigh;
-    debounceMs_ = debounceMs;
     pinMode(pin_, INPUT_PULLUP);
-    stable_ = raw();
-    last_ = stable_;
+    max_ = debounceMs ? debounceMs : 1;
+    down_ = raw();
+    score_ = down_ ? max_ : 0;
+    lastMs_ = millis();
   }
-  /** True exactly once per press. */
+  /** True exactly once per (filtered) press. */
   bool pressed() {
+    const uint32_t now = millis();
+    uint32_t steps = now - lastMs_;
+    if (!steps) return false;
+    lastMs_ = now;
+    if (steps > max_) steps = max_;
     const bool r = raw();
-    if (r != last_) {
-      last_ = r;
-      changedMs_ = millis();
+    for (uint32_t i = 0; i < steps; i++) {
+      if (r) {
+        if (score_ < max_) score_++;
+      } else if (score_) {
+        score_--;
+      }
     }
-    if (millis() - changedMs_ >= debounceMs_ && r != stable_) {
-      stable_ = r;
-      return stable_;  // edge into "pressed"
-    }
-    return false;
+    const bool before = down_;
+    if (score_ >= max_) down_ = true;
+    else if (score_ == 0) down_ = false;
+    return down_ && !before;
   }
-  bool isDown() const { return stable_; }
+  bool isDown() const { return down_; }
 
  private:
   bool raw() const { return (digitalRead(pin_) == HIGH) == activeHigh_; }
   uint8_t pin_ = 0;
   bool activeHigh_ = false;
-  uint32_t debounceMs_ = 30;
-  bool stable_ = false, last_ = false;
-  uint32_t changedMs_ = 0;
+  uint32_t max_ = 50, score_ = 0, lastMs_ = 0;
+  bool down_ = false;
 };
 
 /** 3-way switch on two pull-up pins. Center (neither LOW) = OFF; both LOW = wiring fault -> OFF. */

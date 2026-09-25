@@ -1,0 +1,7 @@
+{
+  "name": "TileIO",
+  "version": "1.0.0",
+  "description": "Tile Machine shared input helpers: per-pin noise monitor",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

@@ -37,9 +37,23 @@ export function humanize(s: string | undefined): string {
 
 /** Module fault bitmask -> readable list (bits defined per module firmware). */
 const FAULT_BITS: Record<string, string[]> = {
-  shredder: ['Switch wiring (both contacts closed)', 'OLED not found'],
+  shredder: [
+    'Switch wiring (both contacts closed)',
+    'OLED not found',
+    'START button signal noisy',
+    'STOP button signal noisy',
+    'Switch AUTO contact noisy',
+    'Switch MANUAL contact noisy',
+    'IR sensor signal noisy',
+  ],
   containing: [],
-  hotpress: ['Selector wiring (both contacts closed)', 'OLED not found', 'ON button signal noisy (check wiring)'],
+  hotpress: [
+    'Selector wiring (both contacts closed)',
+    'OLED not found',
+    'ON button signal noisy',
+    'Selector LEFT contact noisy',
+    'Selector RIGHT contact noisy',
+  ],
 };
 
 export function faultList(moduleId: string, faults: number | undefined): string[] {

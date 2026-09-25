@@ -84,28 +84,6 @@ class OnButton {
   bool on_ = false;
 };
 
-/**
- * Counts every raw edge on a pin (interrupt) and the shortest pulse, to tell electrical noise
- * (microsecond spikes) from a bad mechanical contact (millisecond drop-outs).
- */
-class PinNoiseMonitor {
- public:
-  void begin(uint8_t pin);
-  /** Call every loop; prints a [DIAG] line each second in which the pin had more edges than expected. */
-  void report(const char* name, bool filteredOn);
-  /** Noise seen within the last 10 s (reported to the web as a fault). */
-  bool noisy() const { return lastNoisyMs_ && millis() - lastNoisyMs_ < 10000; }
-
- private:
-  static void IRAM_ATTR isr();
-  static volatile uint32_t edges_;
-  static volatile uint32_t lastEdgeUs_;
-  static volatile uint32_t shortestUs_;
-  uint8_t pin_ = 0;
-  uint32_t lastReportMs_ = 0;
-  uint32_t lastNoisyMs_ = 0;
-};
-
 /** Selector on two pull-up pins: LEFT, RIGHT, neither = NEUTRAL; both LOW = wiring fault -> NEUTRAL. */
 class SelectorSwitch {
  public:

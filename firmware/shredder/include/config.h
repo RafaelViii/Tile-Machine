@@ -4,9 +4,9 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 1);
+constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 2);
 
-constexpr uint32_t BUTTON_DEBOUNCE_MS = 30;
+constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;           // integrating filter window (START / STOP)
 constexpr uint32_t SWITCH_SETTLE_MS = 60;         // 3-way switch must be stable this long
 // Power-up interlock: after every boot the switch must read OFF *continuously* this long before
 // the shredder unlocks. A single first reading is not trusted: on the real board it read OFF for
@@ -17,3 +17,12 @@ constexpr uint32_t RUNNING_TICK_MS = 4000;        // quiet reminder beep while t
 constexpr uint32_t IDENTIFY_MS = 3000;
 constexpr uint32_t RESULT_FLASH_MS = 1500;        // "cancelled"/"timeout" message time on the OLED
 constexpr uint8_t BUZZER_LEDC_CHANNEL = 0;
+
+// Fault bits reported in StatusCommon.faults (web: shared/format.ts, same order)
+constexpr uint16_t FAULT_SWITCH_WIRING = 0x01;  // both switch contacts closed
+constexpr uint16_t FAULT_OLED_MISSING = 0x02;
+constexpr uint16_t FAULT_NOISE_START = 0x04;    // noisy input signals (PinNoiseMonitor)
+constexpr uint16_t FAULT_NOISE_STOP = 0x08;
+constexpr uint16_t FAULT_NOISE_SW_AUTO = 0x10;
+constexpr uint16_t FAULT_NOISE_SW_MANUAL = 0x20;
+constexpr uint16_t FAULT_NOISE_IR = 0x40;

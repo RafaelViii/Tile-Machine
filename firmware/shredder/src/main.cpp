@@ -8,6 +8,7 @@
 #include <Preferences.h>
 
 #include <ModuleLink.h>
+#include <PinNoise.h>
 #include <TileConfig.h>
 #include <TileProtocol.h>
 
@@ -26,6 +27,7 @@ Buzzer buzzer;
 Button startBtn, stopBtn;
 ModeSwitch modeSw;
 IrSensor ir;
+PinNoiseMonitor noise;
 Display display;
 
 // ---------------- config (NVS) ----------------
@@ -356,7 +358,8 @@ void publishStatus() {
   StatusShredder s = {};
   s.c.uptimeS = millis() / 1000;
   s.c.configVersion = cfg.configVersion;
-  s.c.faults = (modeSw.wiringFault() ? 0x01 : 0) | (display.present() ? 0 : 0x02);
+  s.c.faults = (modeSw.wiringFault() ? FAULT_SWITCH_WIRING : 0) | (display.present() ? 0 : FAULT_OLED_MISSING) |
+                noise.faultBits();
   s.c.interlock = state == ShredderState::INTERLOCK && interlockShown;
   s.mode = (uint8_t)modeSw.position();
   s.state = (uint8_t)state;
@@ -413,6 +416,12 @@ void setup() {
   stopBtn.begin(PIN_STOP, STOP_IS_NC, BUTTON_DEBOUNCE_MS);
   modeSw.begin(PIN_SW_AUTO, PIN_SW_MANUAL, SWITCH_SETTLE_MS);
   ir.begin(PIN_IR, IR_ACTIVE_LOW);
+  noise.add(PIN_START, "START button", FAULT_NOISE_START);
+  noise.add(PIN_STOP, "STOP button", FAULT_NOISE_STOP);
+  noise.add(PIN_SW_AUTO, "switch AUTO contact", FAULT_NOISE_SW_AUTO);
+  noise.add(PIN_SW_MANUAL, "switch MANUAL contact", FAULT_NOISE_SW_MANUAL);
+  noise.add(PIN_IR, "IR sensor", FAULT_NOISE_IR);
+  noise.begin();
 
   loadConfig();
   useConfig();
@@ -439,6 +448,7 @@ void setup() {
 
 void loop() {
   updateLogic();  // safety-relevant work first
+  noise.loop();
   buzzer.update();
   hubLink.loop();
   publishStatus();
