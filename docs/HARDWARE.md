@@ -103,11 +103,17 @@ gain 128.
 | ON latching button | 32 | INPUT_PULLUP | LOW = ON. Controls the Designing + Curing relay **only**. |
 | Selector LEFT (HOTPRESS) | 25 | INPUT_PULLUP | LOW = LEFT → Hotpress ON |
 | Selector RIGHT (AUTO) | 26 | INPUT_PULLUP | LOW = RIGHT → AUTO (placeholder: Hotpress ON). Neither = NEUTRAL → COOLING (Hotpress OFF). |
-| Relay 1 — Designing + Curing | 18 | OUTPUT | `RELAY_ACTIVE_LOW` flag |
-| Relay 2 — Hot Press | 19 | OUTPUT | `RELAY_ACTIVE_LOW` flag |
+| SSR 1 — Designing + Curing | 18 | OUTPUT | SSR-25-DA input "+" (terminal 3). HIGH = ON (`RELAY_ACTIVE_LOW = false`) |
+| SSR 2 — Hot Press | 19 | OUTPUT | SSR-25-DA input "+" (terminal 3). HIGH = ON |
 | OLED SH1106 | 21/22 | I2C | addr 0x3C |
 
-Heater loads must go through **properly rated contactors/SSRs**. The ESP32 relay module only
+**Outputs are 2× SSR-25-DA** (DC control 3–32 V, AC load). Input "−" (terminal 4) goes to ESP32 GND, and no
+extra supply is needed. 3.3 V is at the low end of the input range: if an SSR switches unreliably, drive
+it from 5 V through an NPN transistor. Mount each SSR on a heatsink and keep the load well below 25 A
+(clone ratings are optimistic). SSRs usually fail **shorted (stuck ON)**, so the heater circuit must
+have a **thermal fuse / thermostat cut-off** independent of the ESP32.
+
+Heater loads must go through **properly rated contactors/SSRs**. The ESP32 only
 switches the contactor coil.
 
 ---
