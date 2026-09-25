@@ -122,6 +122,10 @@ legacy/
       confirmations open in ONE panel BELOW the row (`rounded-xl bg-zinc-950/60 p-4 ring-1 ring-zinc-800`,
       title + one-line explanation + fields + footer as above). Row text gets a min width so buttons wrap below
       it on phones instead of squeezing it.
+    - Logs and histories (Events, Activity, anything time-ordered): the Events layout. A `<table>` from sm up with
+      column headers (Time first, `text-xs tabular-nums`; badges in their own column so text columns line up;
+      right-aligned last column for results/actions) and stacked rows on phones (badge + who, then time, then text).
+      Expandable details open as a full-width row under the entry.
     - Before shipping any new/changed screen: screenshot it in dark, light and 400 px, with its panels/menus open.
 - Commits: small and focused, imperative subject (`shredder: add auto warning countdown`).
 

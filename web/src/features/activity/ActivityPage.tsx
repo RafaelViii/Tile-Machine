@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import {
   endAt,
@@ -15,7 +15,7 @@ import {
   startAt,
   update,
 } from 'firebase/database';
-import { Badge, Button, Card, EmptyNote, PageHeader, Spinner, cx } from '../../components/ui';
+import { Badge, Button, Card, EmptyNote, PageHeader, Spinner } from '../../components/ui';
 import { db } from '../../lib/firebase';
 import { dateTime } from '../../shared/format';
 import type { AuditAction, AuditNode } from '../../shared/types/rtdb';
@@ -172,11 +172,7 @@ export function ActivityPage() {
           ) : rows.length === 0 ? (
             <EmptyNote>{page === 1 ? 'Nothing recorded yet.' : 'No older activity.'}</EmptyNote>
           ) : (
-            <ul className="divide-y divide-zinc-800">
-              {rows.map((r) => (
-                <ActivityRow key={r.id} r={r} who={nameOf(r.uid, r.email)} />
-              ))}
-            </ul>
+            <ActivityList rows={rows} nameOf={nameOf} />
           )}
         </div>
         {rows && rows.length > 10 && <div className="mt-4">{pager}</div>}
@@ -185,38 +181,107 @@ export function ActivityPage() {
   );
 }
 
-function ActivityRow({ r, who }: { r: Row; who: string }) {
-  const [open, setOpen] = useState(false);
-  const a = ACTION[r.action] ?? { label: r.action, tone: 'zinc' as const };
-  const n = r.changes?.length ?? 0;
+function resultBadge(r: Row) {
+  if (!r.result) return null;
   return (
-    <li className="py-2.5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="w-40 shrink-0 text-xs text-zinc-500 tabular-nums">{typeof r.ts === 'number' ? dateTime(r.ts) : ''}</span>
-        <span className="w-28 shrink-0 truncate text-sm font-medium">{who}</span>
-        <Badge tone={a.tone}>{a.label}</Badge>
-        <span className="min-w-0 flex-1 text-sm">{r.summary}</span>
-        {r.result && (
-          <Badge tone={r.result === 'done' ? 'green' : 'red'}>{r.result === 'done' ? 'Done' : r.result === 'failed' ? 'Failed' : 'Expired'}</Badge>
-        )}
-        {n > 0 && (
-          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)} aria-expanded={open}>
-            {open ? 'Hide' : `${n} change${n === 1 ? '' : 's'}`}
-          </Button>
-        )}
+    <Badge tone={r.result === 'done' ? 'green' : 'red'}>
+      {r.result === 'done' ? 'Done' : r.result === 'failed' ? 'Failed' : 'Expired'}
+    </Badge>
+  );
+}
+
+/** Same layout as the Events page: stacked rows on phones, a table with fixed columns from sm up. */
+function ActivityList({ rows, nameOf }: { rows: Row[]; nameOf: (uid: string, email: string) => string }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
+  const changesButton = (r: Row) => {
+    const n = r.changes?.length ?? 0;
+    if (!n) return null;
+    return (
+      <Button variant="ghost" size="sm" onClick={() => toggle(r.id)} aria-expanded={!!open[r.id]}>
+        {open[r.id] ? 'Hide' : `${n} change${n === 1 ? '' : 's'}`}
+      </Button>
+    );
+  };
+  const changes = (r: Row) =>
+    open[r.id] && r.changes?.length ? (
+      <ul className="grid gap-1 rounded-xl bg-zinc-950/60 p-3 text-xs ring-1 ring-zinc-800 sm:grid-cols-2">
+        {r.changes.map((c, i) => (
+          <li key={i}>
+            <span className="text-zinc-400">{c.label}: </span>
+            <span className="text-zinc-500 line-through tabular-nums">{c.from}</span>
+            <span className="px-1 text-zinc-600">→</span>
+            <span className="text-emerald-300 tabular-nums">{c.to}</span>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+  const action = (r: Row) => ACTION[r.action] ?? { label: r.action, tone: 'zinc' as const };
+
+  return (
+    <>
+      {/* Phone: stacked rows (action + person, then time + result, then what happened). */}
+      <ul className="divide-y divide-zinc-800 sm:hidden">
+        {rows.map((r) => (
+          <li key={r.id} className="py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <Badge tone={action(r).tone}>{action(r).label}</Badge>
+              <span className="truncate text-sm">{nameOf(r.uid, r.email)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3 text-xs text-zinc-500 tabular-nums">
+              <span className="whitespace-nowrap">{typeof r.ts === 'number' ? dateTime(r.ts) : ''}</span>
+              {resultBadge(r)}
+            </div>
+            <div className="mt-1 text-sm">{r.summary}</div>
+            {changesButton(r) && <div className="mt-1">{changesButton(r)}</div>}
+            {changes(r) && <div className="mt-2">{changes(r)}</div>}
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full text-left text-sm">
+          <thead className="text-xs font-medium text-zinc-500">
+            <tr>
+              <th className="py-2 pr-4 font-medium">Time</th>
+              <th className="py-2 pr-4 font-medium">Person</th>
+              <th className="py-2 pr-4 font-medium">Action</th>
+              <th className="py-2 pr-4 font-medium">Details</th>
+              <th className="py-2 text-right font-medium">Result</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-800">
+            {rows.map((r) => (
+              <Fragment key={r.id}>
+                <tr>
+                  <td className="py-2 pr-4 text-xs whitespace-nowrap text-zinc-400 tabular-nums">
+                    {typeof r.ts === 'number' ? dateTime(r.ts) : ''}
+                  </td>
+                  <td className="py-2 pr-4 whitespace-nowrap">{nameOf(r.uid, r.email)}</td>
+                  <td className="py-2 pr-4">
+                    <span className="whitespace-nowrap">
+                      <Badge tone={action(r).tone}>{action(r).label}</Badge>
+                    </span>
+                  </td>
+                  <td className="py-2 pr-4">{r.summary}</td>
+                  <td className="py-2 text-right whitespace-nowrap">
+                    <span className="inline-flex items-center gap-2">
+                      {resultBadge(r)}
+                      {changesButton(r)}
+                    </span>
+                  </td>
+                </tr>
+                {changes(r) && (
+                  <tr className="border-t-0">
+                    <td colSpan={5} className="pb-3">
+                      {changes(r)}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
       </div>
-      {open && n > 0 && (
-        <ul className={cx('mt-2 grid gap-1 rounded-xl bg-zinc-950/60 p-3 text-xs ring-1 ring-zinc-800 sm:grid-cols-2')}>
-          {r.changes!.map((c, i) => (
-            <li key={i}>
-              <span className="text-zinc-400">{c.label}: </span>
-              <span className="text-zinc-500 line-through tabular-nums">{c.from}</span>
-              <span className="px-1 text-zinc-600">→</span>
-              <span className="text-emerald-300 tabular-nums">{c.to}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
+    </>
   );
 }
