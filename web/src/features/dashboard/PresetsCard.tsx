@@ -1,10 +1,10 @@
 import { Link } from 'react-router';
 import { MODULE_NAMES, syncBadge } from '../../components/ConfigBar';
 import { PresetMenu } from '../../components/PresetMenu';
-import { Badge, Button, Card, CardTitle } from '../../components/ui';
+import { Button, Card, CardTitle, cx } from '../../components/ui';
 import { diffConfig } from '../../shared/configDiff';
 import { useConfigDrafts } from '../../shared/configDrafts';
-import { syncState } from '../../shared/hooks/useConfigEditor';
+import { syncState, type SyncState } from '../../shared/hooks/useConfigEditor';
 import { useMachine } from '../../shared/machine';
 import { MODULE_IDS } from '../../shared/types/rtdb';
 
@@ -33,15 +33,16 @@ export function PresetsCard() {
 
       <div className="mt-5 border-t border-zinc-800 pt-4">
         {changes.length === 0 ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-400">
-            <span>No unsaved changes. Machine settings:</span>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-zinc-400">
+            <span>No unsaved changes</span>
             {MODULE_IDS.map((id) => {
               const node = modules[id].node;
-              const b = d.saving ? { tone: 'zinc' as const, text: 'Saving…' } : syncBadge[syncState(node?.config, node?.configApplied)];
+              const s = syncState(node?.config, node?.configApplied);
+              const text = d.saving ? 'Saving…' : syncBadge[s].text;
               return (
-                <span key={id} className="inline-flex items-center gap-1.5">
+                <span key={id} className="inline-flex items-center gap-1.5" title={`${MODULE_NAMES[id]}: ${text}`}>
+                  <SyncIcon state={d.saving ? 'pending' : s} label={text} />
                   <span className="text-zinc-300">{MODULE_NAMES[id]}</span>
-                  <Badge tone={b.tone}>{b.text}</Badge>
                 </span>
               );
             })}
@@ -91,5 +92,34 @@ export function PresetsCard() {
         )}
       </div>
     </Card>
+  );
+}
+
+/** Small status icon for a module's config sync: ✓ synced, clock waiting, ! rejected, dashed = never saved. */
+function SyncIcon({ state, label }: { state: SyncState; label: string }) {
+  const tone = {
+    synced: 'text-emerald-400',
+    pending: 'text-amber-400',
+    queued: 'text-sky-400',
+    rejected: 'text-red-400',
+    never: 'text-zinc-500',
+  }[state];
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={cx('h-4 w-4 shrink-0', tone)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      role="img"
+      aria-label={label}
+    >
+      <circle cx="8" cy="8" r="6.5" strokeDasharray={state === 'never' ? '2.2 2' : undefined} />
+      {state === 'synced' && <path d="M5 8.3l2 2 4-4.3" />}
+      {(state === 'pending' || state === 'queued') && <path d="M8 4.8V8l2 1.4" />}
+      {state === 'rejected' && <path d="M8 4.8v3.6M8 11h.01" />}
+    </svg>
   );
 }
