@@ -111,7 +111,7 @@ export const LogoutIcon = (p: P) => (
   </svg>
 );
 
-/** Brand mark: four tiles in the app's line style, one filled with the accent (the tile being made). */
+/** Brand mark: four tiles in the app's line style; the last one is a finished tile, raised out of the grid. */
 export const LogoMark = (p: P) => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden {...p}>
     <g stroke="currentColor" strokeWidth={1.7} strokeLinejoin="round" className="text-zinc-400">
@@ -119,7 +119,8 @@ export const LogoMark = (p: P) => (
       <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
       <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
     </g>
-    {/* Same outer size as the stroked tiles (stroke adds 0.85 on each side). */}
-    <rect x="12.65" y="12.65" width="9.2" height="9.2" rx="2.85" className="fill-emerald-400" />
+    {/* Raised tile: darker edge sits in the slot, the bright face is lifted up-left. */}
+    <rect x="13.4" y="13.4" width="8.5" height="8.5" rx="2.6" className="fill-emerald-800" />
+    <rect x="12.3" y="12.3" width="8.5" height="8.5" rx="2.6" className="fill-emerald-400" />
   </svg>
 );
