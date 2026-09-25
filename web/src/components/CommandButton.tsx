@@ -6,6 +6,7 @@ import { Button, cx } from './ui';
 const statusText: Record<string, string> = {
   sending: 'Sending…',
   pending: 'Waiting for hub…',
+  noanswer: 'No answer from the hub. Use the physical STOP if needed',
   sent: 'Delivered to module…',
   done: 'Done ✓',
   failed: 'Failed',
@@ -57,7 +58,7 @@ export function CommandButton({
             floatingStatus && 'absolute top-full right-0 mt-1 whitespace-nowrap',
             status === 'done'
               ? 'text-emerald-400'
-              : status === 'failed' || status === 'expired' || status === 'error'
+              : status === 'failed' || status === 'expired' || status === 'error' || status === 'noanswer'
                 ? 'text-red-400'
                 : 'text-zinc-400',
           )}

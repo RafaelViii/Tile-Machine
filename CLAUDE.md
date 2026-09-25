@@ -184,6 +184,10 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       under the real flaky WiFi. Root cause of the TLS -0x7F00 failures with ~95 KB free is still unknown.
       Next: a 2–3 day unattended soak test (boards may stay on the PC's USB; PC must not sleep), then read
       Dashboard → Main hub (health + Hub log).
+      **Hub fw 0.3.4 (2026-09-26):** web commands (IDENTIFY, STOP, STOP ALL...) were silently dropped since the
+      accounts work (command + audit entry = one multi-path write = stream `patch` with path keys). Fixed and
+      verified from the website in stream mode (0.3-0.4 s each). Web: a command still pending after 10 s shows
+      "No answer from the hub". Always test commands through the website.
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):

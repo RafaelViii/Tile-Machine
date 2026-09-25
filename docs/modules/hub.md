@@ -151,6 +151,11 @@ the entry (`MODULE_REPLACED`). Holding the BOOT button for 5 s clears the regist
 
 - ESP-NOW callbacks run in the WiFi task. They must copy the packet into a FreeRTOS queue and
   return. **No Firebase calls inside callbacks.**
+- **/commands stream and multi-path writes (fw 0.3.4):** the web writes each command together with its /audit
+  entry in ONE multi-path update. The stream then delivers a `patch` at path `/` whose KEYS are paths
+  (`{"shredder/-Pabc": {...}}`). fw <= 0.3.3 treated such a key as one name and dropped every web command
+  (they only worked while the hotspot was open, when /commands is polled instead). `splitPath()` now splits
+  every patch key. Any test of commands must go through the website, not a CLI push (a push is a plain `put`).
 - The hub can never change channel (it's bound to the router). The modules follow the hub, also
   when the hub moves to another network from the setup page.
 - The ESP32 has one radio, so WiFi traffic and ESP-NOW share airtime. Keep Firebase writes

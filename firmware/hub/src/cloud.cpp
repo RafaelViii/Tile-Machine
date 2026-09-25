@@ -458,6 +458,21 @@ void handleNode(const String* segs, int n, JsonVariantConst v) {
   }
 }
 
+/** "/shredder/-Pabc" -> {"shredder","-Pabc"}. Returns the depth, or -1 if deeper than 3 levels (a field). */
+int splitPath(const String& path, String (&segs)[3]) {
+  int n = 0, start = 0;
+  while (start < (int)path.length()) {
+    int slash = path.indexOf('/', start);
+    if (slash < 0) slash = path.length();
+    if (slash > start) {
+      if (n == 3) return -1;
+      segs[n++] = path.substring(start, slash);
+    }
+    start = slash + 1;
+  }
+  return n;
+}
+
 void dispatchStreamEvent() {
   if (streamEvent == "put" || streamEvent == "patch") {
     JsonDocument doc;
@@ -465,26 +480,21 @@ void dispatchStreamEvent() {
       diag::printf("[ERROR] bad stream JSON\n");
       return;
     }
-    String segs[3];
-    int n = 0;
-    String path = doc["path"] | "/";
-    int start = 0;
-    while (start < (int)path.length() && n < 3) {
-      int slash = path.indexOf('/', start);
-      if (slash < 0) slash = path.length();
-      if (slash > start) segs[n++] = path.substring(start, slash);
-      start = slash + 1;
-    }
-    if (start < (int)path.length()) return;  // deeper than 3 levels: a field, ignore
-
+    const String path = doc["path"] | "/";
     JsonVariantConst data = doc["data"];
     if (streamEvent == "put") {
-      handleNode(segs, n, data);
-    } else if (data.is<JsonObjectConst>() && n < 3) {
+      String segs[3];
+      const int n = splitPath(path, segs);
+      if (n >= 0) handleNode(segs, n, data);
+    } else if (data.is<JsonObjectConst>()) {
+      // A patch key can itself be a path: the web writes each command together with its /audit entry in one
+      // multi-path update, which the /commands stream delivers as {"path":"/","data":{"shredder/-Pabc":{...}}}.
+      // fw <= 0.3.3 took "shredder/-Pabc" as a module name and silently dropped every web command
+      // (they only worked while the hotspot was open, because /commands is then polled).
       for (JsonPairConst kv : data.as<JsonObjectConst>()) {
-        String s2[3] = {segs[0], segs[1], segs[2]};
-        s2[n] = kv.key().c_str();
-        handleNode(s2, n + 1, kv.value());
+        String segs[3];
+        const int n = splitPath(path + "/" + kv.key().c_str(), segs);
+        if (n >= 0) handleNode(segs, n, kv.value());
       }
     }
     setOnline(true);

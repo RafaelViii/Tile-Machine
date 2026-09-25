@@ -4,10 +4,12 @@ import { auth, db } from '../../lib/firebase';
 import { auditEntry } from '../audit';
 import type { CommandStatus, CommandType, ModuleId } from '../types/rtdb';
 
+const COMMAND_NO_ANSWER_MS = 10_000;
+
 const MODULE_LABEL: Record<ModuleId, string> = { shredder: 'Shredder', containing: 'Containing', hotpress: 'Hot Press' };
 
 export interface CommandState {
-  status: CommandStatus | 'sending' | 'error' | null;
+  status: CommandStatus | 'sending' | 'error' | 'noanswer' | null;
   error: string | null;
 }
 
@@ -18,12 +20,20 @@ export interface CommandState {
 export function useCommand(moduleId: ModuleId | 'all') {
   const [state, setState] = useState<CommandState>({ status: null, error: null });
   const unsub = useRef<(() => void) | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => unsub.current?.(), []);
+  useEffect(
+    () => () => {
+      unsub.current?.();
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const send = useCallback(
     async (type: CommandType, opts: { target?: number; arg?: number } = {}) => {
       unsub.current?.();
+      if (timer.current) clearTimeout(timer.current);
       setState({ status: 'sending', error: null });
       try {
         const body: Record<string, unknown> = {
@@ -45,6 +55,12 @@ export function useCommand(moduleId: ModuleId | 'all') {
         });
         await update(ref(db), { [`commands/${moduleId}/${cmdKey}`]: body, [auditPath]: entry });
         let logged = false;
+        // The hub normally answers in well under a second. Still 'pending' after this = it didn't pick the
+        // command up (hub offline, or a hub bug like fw <= 0.3.3 dropping web commands): say so, don't wait forever.
+        timer.current = setTimeout(
+          () => setState((cur) => (cur.status === 'pending' ? { status: 'noanswer', error: null } : cur)),
+          COMMAND_NO_ANSWER_MS,
+        );
         unsub.current = onValue(ref(db, `commands/${moduleId}/${cmdKey}/status`), (snap) => {
           // Hub deletes finished commands after 24 h; keep the last known status.
           if (!snap.exists()) return;
