@@ -4,18 +4,28 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
 }
 
+/** Machine panel: steel face, 1px frame, corner rivets. */
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5', className)}>
+    <section
+      className={cx(
+        'rivets relative rounded-lg border border-zinc-800 bg-zinc-900/80 p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.03)_inset]',
+        className,
+      )}
+    >
       {children}
     </section>
   );
 }
 
+/** Panel label: safety-yellow tab + condensed uppercase text. */
 export function CardTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h2 className="text-sm font-semibold tracking-wide text-zinc-300 uppercase">{children}</h2>
+      <h2 className="flex items-center gap-2.5 font-display text-[15px] font-semibold tracking-[0.12em] text-zinc-200 uppercase">
+        <span className="h-4 w-1.5 rounded-sm bg-hazard" aria-hidden />
+        {children}
+      </h2>
       {right}
     </div>
   );
@@ -24,23 +34,33 @@ export function CardTitle({ children, right }: { children: ReactNode; right?: Re
 type Tone = 'green' | 'amber' | 'red' | 'zinc' | 'sky';
 
 const toneClasses: Record<Tone, string> = {
-  green: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30',
-  amber: 'bg-amber-500/10 text-amber-300 ring-amber-500/30',
-  red: 'bg-red-500/10 text-red-300 ring-red-500/30',
-  zinc: 'bg-zinc-500/10 text-zinc-400 ring-zinc-500/30',
-  sky: 'bg-sky-500/10 text-sky-300 ring-sky-500/30',
+  green: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/40',
+  amber: 'bg-amber-500/10 text-amber-300 ring-amber-500/40',
+  red: 'bg-red-500/10 text-red-300 ring-red-500/40',
+  zinc: 'bg-zinc-500/10 text-zinc-400 ring-zinc-500/40',
+  sky: 'bg-sky-500/10 text-sky-300 ring-sky-500/40',
 };
 
 export function Badge({ tone = 'zinc', children }: { tone?: Tone; children: ReactNode }) {
   return (
     <span
       className={cx(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset',
+        'inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 font-display text-[13px] font-semibold tracking-wider uppercase ring-1 ring-inset',
         toneClasses[tone],
       )}
     >
       {children}
     </span>
+  );
+}
+
+/** Indicator lamp. */
+export function Lamp({ state }: { state: 'on' | 'off' | 'warn' | 'fault' }) {
+  return (
+    <span
+      className={cx('lamp', state === 'on' && 'lamp-on', state === 'warn' && 'lamp-warn', state === 'fault' && 'lamp-fault')}
+      aria-hidden
+    />
   );
 }
 
@@ -66,10 +86,10 @@ export function ConnectionBadge({ connected, hubOnline }: { connected: boolean; 
 type Variant = 'primary' | 'danger' | 'ghost' | 'subtle';
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400',
-  danger: 'bg-red-600 text-white hover:bg-red-500',
+  primary: 'bg-emerald-500 text-ink hover:bg-emerald-400 shadow-[0_2px_0_0_rgb(0_0_0/0.25)]',
+  danger: 'bg-red-600 text-white hover:bg-red-500 shadow-[0_2px_0_0_rgb(0_0_0/0.3)]',
   ghost: 'text-zinc-300 hover:bg-zinc-800',
-  subtle: 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700',
+  subtle: 'bg-zinc-800 text-zinc-100 ring-1 ring-zinc-700 hover:bg-zinc-700',
 };
 
 export function Button({
@@ -81,9 +101,9 @@ export function Button({
     <button
       {...rest}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition',
-        'focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none',
-        'disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 font-display text-[15px] font-semibold tracking-wider uppercase transition',
+        'focus-visible:ring-2 focus-visible:ring-hazard focus-visible:outline-none active:translate-y-px',
+        'disabled:cursor-not-allowed disabled:opacity-40 disabled:active:translate-y-0',
         variantClasses[variant],
         className,
       )}
@@ -91,13 +111,14 @@ export function Button({
   );
 }
 
+/** Readout: condensed label over a monospace value, set into the panel. */
 export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: Tone }) {
   return (
-    <div className="rounded-xl bg-zinc-950/60 px-3 py-2.5 ring-1 ring-zinc-800">
-      <div className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</div>
+    <div className="rounded-md bg-zinc-950/70 px-3 py-2.5 ring-1 ring-zinc-800 ring-inset">
+      <div className="font-display text-[12px] font-semibold tracking-[0.12em] text-zinc-500 uppercase">{label}</div>
       <div
         className={cx(
-          'mt-0.5 font-mono text-sm',
+          'mt-0.5 font-mono text-sm break-words text-zinc-100',
           tone === 'green' && 'text-emerald-300',
           tone === 'amber' && 'text-amber-300',
           tone === 'red' && 'text-red-300',
@@ -112,7 +133,7 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
 
 export function EmptyNote({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-xl border border-dashed border-zinc-800 px-4 py-6 text-center text-sm text-zinc-500">
+    <p className="rounded-md border border-dashed border-zinc-700 px-4 py-6 text-center text-sm text-zinc-500">
       {children}
     </p>
   );
@@ -122,8 +143,8 @@ export function PageHeader({ title, subtitle, right }: { title: string; subtitle
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>}
+        <h1 className="font-display text-3xl font-bold tracking-wide uppercase">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-sm text-zinc-400">{subtitle}</p>}
       </div>
       {right}
     </div>
@@ -133,7 +154,7 @@ export function PageHeader({ title, subtitle, right }: { title: string; subtitle
 export function Spinner() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-hazard" />
     </div>
   );
 }

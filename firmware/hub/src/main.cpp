@@ -656,6 +656,37 @@ void diagnoseWifi() {
   WiFi.scanDelete();
 }
 
+uint32_t wifiDownSinceMs = 0;
+uint32_t wifiLastRetryMs = 0;
+
+/** Keeps retrying WiFi ourselves; reboots the hub if it stays down too long. */
+void wifiWatchdog() {
+  const uint32_t now = millis();
+  if (WiFi.status() == WL_CONNECTED) {
+    if (wifiDownSinceMs) {
+      Serial.printf("[NET] WiFi back after %lu s\n", (unsigned long)((now - wifiDownSinceMs) / 1000));
+      wifiDownSinceMs = 0;
+    }
+    return;
+  }
+  if (!wifiDownSinceMs) {
+    wifiDownSinceMs = now;
+    wifiLastRetryMs = now;
+    return;
+  }
+  if (now - wifiDownSinceMs >= WIFI_REBOOT_AFTER_MS) {
+    Serial.println("[ERROR] WiFi down for 10 min: restarting the hub (modules keep running and will re-pair)");
+    delay(100);
+    ESP.restart();
+  }
+  if (now - wifiLastRetryMs >= WIFI_RETRY_EVERY_MS) {
+    wifiLastRetryMs = now;
+    Serial.printf("[NET] WiFi down %lu s, retrying '%s'\n", (unsigned long)((now - wifiDownSinceMs) / 1000), WIFI_SSID);
+    WiFi.disconnect();
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  }
+}
+
 uint32_t lastPresenceMs = 0, lastPushMs = 0, lastReportMs = 0;
 
 void printReport() {
@@ -735,6 +766,7 @@ void loop() {
     lastPushMs = now;
     pushConfigs();
   }
+  wifiWatchdog();
   serviceClock();
   serviceTimeBroadcast();
   syncCloud();

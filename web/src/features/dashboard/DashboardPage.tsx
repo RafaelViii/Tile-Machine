@@ -1,10 +1,11 @@
 import { Fragment, type ComponentType, type SVGProps } from 'react';
 import { Link } from 'react-router';
-import { ArrowRight, ContainerIcon, CuringIcon, DesignIcon, HotpressIcon, HubIcon, ShredderIcon } from '../../components/icons';
-import { Badge, Card, CardTitle, PageHeader, Stat, StatusDot, cx } from '../../components/ui';
-import { ago, humanize, kg, uptime } from '../../shared/format';
+import { ArrowRight, ContainerIcon, CuringIcon, DesignIcon, HotpressIcon, ShredderIcon } from '../../components/icons';
+import { Badge, Card, CardTitle, Lamp, PageHeader, cx } from '../../components/ui';
+import { humanize, kg } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
 import type { ModuleId } from '../../shared/types/rtdb';
+import { DeviceCards } from './DeviceCards';
 
 interface Process {
   name: string;
@@ -79,26 +80,34 @@ const processes: Process[] = [
   },
 ];
 
-function ProcessTile({ p, m }: { p: Process; m: MachineStatus }) {
+function ProcessTile({ p, m, step }: { p: Process; m: MachineStatus; step: number }) {
   const connected = m.modules[p.device].connected;
   const summary = connected ? p.summary(m) : null;
   return (
     <Link
       to={p.to}
       className={cx(
-        'group relative flex min-h-40 flex-1 basis-40 flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition',
+        'group relative flex min-h-40 flex-col lg:min-h-44 lg:flex-1 lg:basis-40 items-center justify-center gap-2 overflow-hidden rounded-lg border p-4 pt-7 text-center transition',
         connected
-          ? 'tile-connected border-emerald-500/50 bg-emerald-500/[0.07]'
-          : 'border-zinc-800 bg-zinc-900/40 opacity-50 grayscale hover:opacity-70',
+          ? 'tile-connected border-emerald-500/60 bg-emerald-500/[0.08]'
+          : 'border-zinc-800 bg-zinc-900/60 opacity-60 grayscale hover:opacity-80',
       )}
     >
-      <span className="absolute top-3 left-3 font-mono text-[10px] text-zinc-500">{p.esp}</span>
-      <span className="absolute top-3 right-3">
-        <StatusDot on={connected} />
-      </span>
-      <p.Icon className={cx('h-10 w-10', connected ? 'text-emerald-300' : 'text-zinc-500')} />
-      <div className="font-semibold">{p.name}</div>
-      <div className={cx('text-xs font-medium', connected ? 'text-emerald-300' : 'text-zinc-500')}>
+      {/* station plate: step number + ESP, lamp on the right */}
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/60 px-2.5 py-1">
+        <span className="font-display text-[12px] font-semibold tracking-[0.14em] text-zinc-500 uppercase">
+          Step {step} · {p.esp}
+        </span>
+        <Lamp state={connected ? 'on' : 'off'} />
+      </div>
+      <p.Icon className={cx('mt-1 h-10 w-10', connected ? 'text-emerald-300' : 'text-zinc-500')} />
+      <div className="font-display text-lg leading-tight font-bold tracking-wide uppercase">{p.name}</div>
+      <div
+        className={cx(
+          'font-display text-[13px] font-semibold tracking-wider uppercase',
+          connected ? 'text-emerald-300' : 'text-zinc-500',
+        )}
+      >
         {connected ? 'Connected' : 'Not connected'}
       </div>
       {summary && <div className="font-mono text-[11px] text-zinc-400">{summary}</div>}
@@ -108,7 +117,6 @@ function ProcessTile({ p, m }: { p: Process; m: MachineStatus }) {
 
 export function DashboardPage() {
   const m = useMachine();
-  const { hub, hubOnline, now } = m;
   const connectedCount = (['shredder', 'containing', 'hotpress'] as const).filter((id) => m.modules[id].connected).length;
 
   return (
@@ -119,59 +127,19 @@ export function DashboardPage() {
         right={<Badge tone={connectedCount === 3 ? 'green' : 'zinc'}>{connectedCount} / 3 modules connected</Badge>}
       />
 
-      <Card className="mb-6">
+      <Card className="mb-8">
         <CardTitle>Process line</CardTitle>
-        <div className="flex flex-wrap items-stretch gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:flex-wrap lg:items-stretch">
           {processes.map((p, i) => (
             <Fragment key={p.name}>
               {i > 0 && <ArrowRight className="hidden h-5 w-5 shrink-0 self-center text-zinc-600 lg:block" />}
-              <ProcessTile p={p} m={m} />
+              <ProcessTile p={p} m={m} step={i + 1} />
             </Fragment>
           ))}
         </div>
       </Card>
 
-      <Card>
-        <CardTitle
-          right={
-            <Badge tone={hubOnline ? 'green' : 'red'}>
-              <StatusDot on={hubOnline} /> {hubOnline ? 'Online' : 'Offline'}
-            </Badge>
-          }
-        >
-          <span className="flex items-center gap-2">
-            <HubIcon className="h-4 w-4" /> Main hub · esp0
-          </span>
-        </CardTitle>
-        {!hub ? (
-          <p className="text-sm text-zinc-400">
-            The hub hasn't connected to Firebase yet. Once its firmware is flashed and on WiFi, it shows up here and the
-            modules start lighting up.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-            <Stat label="Last seen" value={ago(hub.lastSeen, now)} tone={hubOnline ? 'green' : 'red'} />
-            <Stat label="Up since" value={hub.bootAt ? uptime(Math.round((now - hub.bootAt) / 1000)) : '—'} />
-            <Stat label="IP" value={hub.ip ?? '—'} />
-            <Stat label="WiFi channel" value={hub.wifiChannel ?? '—'} />
-            <Stat label="WiFi signal" value={hub.wifiRssi !== undefined ? `${hub.wifiRssi} dBm` : '—'} />
-            <Stat
-              label="Clock (DS3231)"
-              value={
-                hub.rtc === 'ok'
-                  ? `RTC ok · ${hub.timeSource === 'ntp' ? 'internet' : hub.timeSource === 'rtc' ? 'RTC only' : '—'}`
-                  : hub.rtc === 'lost-power'
-                    ? 'RTC not set'
-                    : hub.rtc === 'missing'
-                      ? 'RTC missing'
-                      : '—'
-              }
-              tone={hub.rtc === 'ok' ? 'green' : hub.rtc ? 'amber' : undefined}
-            />
-            <Stat label="Firmware" value={hub.fw ?? '—'} />
-          </div>
-        )}
-      </Card>
+      <DeviceCards />
     </>
   );
 }

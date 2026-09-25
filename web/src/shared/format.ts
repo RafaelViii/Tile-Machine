@@ -35,6 +35,23 @@ export function humanize(s: string | undefined): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+/** Module fault bitmask -> readable list (bits defined per module firmware). */
+const FAULT_BITS: Record<string, string[]> = {
+  shredder: ['Switch wiring (both contacts closed)', 'OLED not found'],
+  containing: [],
+  hotpress: [],
+};
+
+export function faultList(moduleId: string, faults: number | undefined): string[] {
+  if (!faults) return [];
+  const names = FAULT_BITS[moduleId] ?? [];
+  const out: string[] = [];
+  for (let bit = 0; bit < 16; bit++) {
+    if (faults & (1 << bit)) out.push(names[bit] ?? `Fault code ${bit}`);
+  }
+  return out;
+}
+
 export function dateTime(ts: number): string {
   return new Date(ts).toLocaleString();
 }

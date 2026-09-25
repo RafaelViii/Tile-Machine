@@ -4,7 +4,7 @@
 #include <TileProtocol.h>
 
 #define HUB_FW_MAJOR 0
-#define HUB_FW_MINOR 1
+#define HUB_FW_MINOR 2
 #define HUB_FW_PATCH 0
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
@@ -21,6 +21,11 @@ constexpr uint32_t CONFIG_RESEND_MS = 3000;       // min gap between CONFIG send
 constexpr uint32_t CONFIG_QUEUED_RESEND_MS = 30000;
 constexpr uint32_t HUB_HEARTBEAT_MS = 10000;      // /hub/lastSeen + presence/lastSeen refresh
 constexpr uint32_t BOOT_BUTTON_HOLD_MS = 5000;    // hold BOOT this long to clear pairings
+// WiFi watchdog: core 2.0.x auto-reconnect can stop retrying after "network not found" (seen when
+// the router's 2.4 GHz radio dropped out). The hub retries itself and reboots as a last resort
+// (safe: the hub drives no machinery, modules keep running and re-pair).
+constexpr uint32_t WIFI_RETRY_EVERY_MS = 20000;
+constexpr uint32_t WIFI_REBOOT_AFTER_MS = 10UL * 60 * 1000;
 
 // ---- Cloud (Firebase) ----
 constexpr uint32_t CLOUD_FLUSH_MS = 500;          // batched PATCH of state/presence/events

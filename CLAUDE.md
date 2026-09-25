@@ -133,13 +133,15 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [x] Phase 1: `TileProtocol` lib + hub auto-pairing + presence over ESP-NOW
 - [x] Phase 2: hub → RTDB (batched state/presence/events, config polling + push, `/commands` stream).
       **Verified on the real hub (COM7)**: steady `lastSeen` < 11 s, STOP ALL round trip about 125 ms.
-      See docs/modules/hub.md for the HTTPClient-blocking and slow-DNS fixes.
+      See docs/modules/hub.md for the HTTPClient-blocking and slow-DNS fixes. Hub fw 0.2.0 adds a WiFi
+      watchdog (retry every 20 s, reboot after 10 min): core 2.0.x stopped reconnecting after the
+      router's 2.4 GHz radio dropped out (reason 201).
 - [x] Link test on the real Shredder board (COM8): paired with the hub 0.1 s after boot, got the RTC
       clock, and Firebase shows it online. Auto-pairing is proven end to end.
 - [~] Phase 3: Shredder firmware (firmware/shredder, fw 0.2.0) **running on the real board (COM8)**: OLED layout self-test passes, paired + clock from hub, web config v1 applied and saved to NVS. **Still to test by hand:** switch modes, START/STOP, IR, buzzer sounds, relay.
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
-- [ ] Phase 6: Web polish after real hardware testing (config pages, commands and event log already built)
+- [~] Phase 6: Web: industrial theme with Auto/Light/Dark (tm-theme in localStorage; the steel "zinc" palette is swapped by CSS vars, so no per-component colours), Devices section with every ESP32 (hub + modules: last seen, uptime, MAC, fw, config sync, faults, safety). Checked in both themes, desktop + 400 px.
 - [ ] Phase 7: Hardening: ESP-NOW encryption, WiFi provisioning portal, OTA
 
 ## 9. Open questions / pending decisions
