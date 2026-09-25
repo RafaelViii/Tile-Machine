@@ -3,9 +3,9 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t HOTPRESS_FW = tile::fwEncode(0, 1, 0);
+constexpr uint16_t HOTPRESS_FW = tile::fwEncode(0, 1, 1);
 
-constexpr uint32_t INPUT_SETTLE_MS = 60;        // button/selector must be stable this long
+constexpr uint32_t INPUT_SETTLE_MS = 60;        // initial settle only; the web config (button/selector debounce) replaces it
 // Power-up interlock (safety invariant 3), per output: after boot the ON button must read OFF and
 // the selector must read middle *continuously* this long before that output may turn on.
 // (Lesson from the shredder: a single first reading at power-up can be wrong.)

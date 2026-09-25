@@ -147,6 +147,8 @@ bool configFromJson(ModuleId id, JsonObjectConst in, uint8_t* out, size_t& len) 
       ConfigHotpress c = defaultHotpressConfig();
       c.configVersion = version;
       c.autoModeBehaviour = u8(in["autoModeBehaviour"], c.autoModeBehaviour);
+      c.buttonDebounceMs = u16(in["buttonDebounceMs"], c.buttonDebounceMs);
+      c.selectorDebounceMs = u16(in["selectorDebounceMs"], c.selectorDebounceMs);
       memcpy(out, &c, sizeof(c));
       len = sizeof(c);
       return true;

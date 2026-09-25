@@ -119,7 +119,7 @@ while the hub doesn't know the time.
 // Load-cell calibration is NOT config (see state.calFactor), so a config save can't overwrite it.
 
 // hotpress
-{ "version": 1, "autoModeBehaviour": 0 }
+{ "version": 1, "autoModeBehaviour": 0, "buttonDebounceMs": 200, "selectorDebounceMs": 150 }
 ```
 
 ## Web ↔ process mapping (dashboard tiles)

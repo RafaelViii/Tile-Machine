@@ -122,6 +122,8 @@ export interface ContainingConfig {
 export interface HotpressConfig {
   version: number;
   autoModeBehaviour: number;
+  buttonDebounceMs: number; // ON (latching) button must be stable this long
+  selectorDebounceMs: number; // 3-way selector must be stable this long
 }
 
 export interface ConfigByModule {

@@ -190,8 +190,12 @@ struct __attribute__((packed)) ConfigContaining {
 struct __attribute__((packed)) ConfigHotpress {
   uint32_t configVersion;
   uint8_t  autoModeBehaviour;  // 0 = placeholder (Hotpress ON). Reserved for future AUTO logic.
+  uint16_t buttonDebounceMs;   // ON button settle time, default 200 (range 20..2000)
+  uint16_t selectorDebounceMs; // selector settle time,  default 150 (range 20..2000)
 };
 ```
+(9 bytes. Added after the first hardware test: the latching ON button chattered past the old
+fixed 60 ms. Hub and hotpress firmware must match: a size mismatch is rejected, never misread.)
 
 ## 7. COMMAND codes
 

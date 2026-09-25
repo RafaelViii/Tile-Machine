@@ -74,9 +74,14 @@ inline ConfigHotpress defaultHotpressConfig() {
   ConfigHotpress c{};
   c.configVersion = 0;
   c.autoModeBehaviour = 0;
+  c.buttonDebounceMs = 200;   // the latching ON button chattered past 60 ms in the hardware test
+  c.selectorDebounceMs = 150;
   return c;
 }
 
-inline bool validHotpressConfig(const ConfigHotpress& c) { return c.autoModeBehaviour == 0; }
+inline bool validHotpressConfig(const ConfigHotpress& c) {
+  return c.autoModeBehaviour == 0 && inRange<uint16_t>(c.buttonDebounceMs, 20, 2000) &&
+         inRange<uint16_t>(c.selectorDebounceMs, 20, 2000);
+}
 
 }  // namespace tile

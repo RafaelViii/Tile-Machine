@@ -26,6 +26,7 @@ class Settled {
     return false;
   }
   T value() const { return stable_; }
+  void setSettle(uint32_t ms) { settleMs_ = ms; }
 
  private:
   T stable_{}, last_{};
@@ -41,6 +42,7 @@ class OnButton {
   }
   bool update() { return s_.feed(raw()); }
   bool on() const { return s_.value(); }
+  void setDebounce(uint32_t ms) { s_.setSettle(ms); }
 
  private:
   bool raw() const { return digitalRead(pin_) == LOW; }
@@ -60,6 +62,7 @@ class SelectorSwitch {
   }
   bool update() { return s_.feed(raw()); }
   tile::Selector position() const { return s_.value(); }
+  void setDebounce(uint32_t ms) { s_.setSettle(ms); }
   bool wiringFault() const { return digitalRead(pl_) == LOW && digitalRead(pr_) == LOW; }
 
  private:

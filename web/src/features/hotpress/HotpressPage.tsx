@@ -1,7 +1,13 @@
+import { ConfigBar } from '../../components/ConfigBar';
 import { ModulePanel } from '../../components/ModulePanel';
+import { NumberField } from '../../components/NumberField';
 import { CuringIcon, DesignIcon, HotpressIcon } from '../../components/icons';
 import { Badge, Card, CardTitle, EmptyNote, Stat, cx } from '../../components/ui';
+import { LIMITS } from '../../shared/configDefaults';
+import { useConfigEditor } from '../../shared/hooks/useConfigEditor';
 import { useMachine } from '../../shared/machine';
+
+const L = LIMITS.hotpress;
 
 function RelayTile({ name, on, detail, Icon }: {
   name: string;
@@ -27,6 +33,8 @@ export function HotpressPage() {
   const { modules } = useMachine();
   const { node, connected } = modules.hotpress;
   const s = connected ? node?.state : undefined;
+  const cfg = useConfigEditor('hotpress', node?.config ?? undefined, node?.configApplied);
+  const d = cfg.draft;
 
   const hotpressDetail = !s
     ? '—'
@@ -73,6 +81,35 @@ export function HotpressPage() {
         )}
       </Card>
 
+      <Card className="mb-6">
+        <CardTitle>Inputs</CardTitle>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <NumberField
+            label="ON button debounce"
+            hint="A new button position only counts after it stays steady this long. Raise it if Designing + Curing flickers when pressed"
+            value={d.buttonDebounceMs}
+            onChange={(v) => cfg.update((c) => ({ ...c, buttonDebounceMs: v }))}
+            min={L.buttonDebounceMs[0]}
+            max={L.buttonDebounceMs[1]}
+            step={10}
+            unit="ms"
+          />
+          <NumberField
+            label="Selector debounce"
+            hint="Same for the 3-way selector (Hot Press heating / cooling / auto)"
+            value={d.selectorDebounceMs}
+            onChange={(v) => cfg.update((c) => ({ ...c, selectorDebounceMs: v }))}
+            min={L.selectorDebounceMs[0]}
+            max={L.selectorDebounceMs[1]}
+            step={10}
+            unit="ms"
+          />
+        </div>
+        <p className="mt-3 text-[11px] text-zinc-500">
+          Applied right away: a longer filter never turns anything on, it only ignores contact chatter.
+        </p>
+      </Card>
+
       <Card>
         <CardTitle right={<Badge tone="amber">Not designed yet</Badge>}>AUTO mode</CardTitle>
         <p className="text-sm text-zinc-400">
@@ -80,6 +117,8 @@ export function HotpressPage() {
           (temperature, timed press cycle, or triggered by Containing) will be added once it's decided.
         </p>
       </Card>
+
+      <ConfigBar {...cfg} connected={connected} onSave={cfg.save} onReset={cfg.reset} />
     </ModulePanel>
   );
 }

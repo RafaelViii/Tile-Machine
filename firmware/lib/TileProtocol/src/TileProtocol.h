@@ -311,6 +311,8 @@ struct ConfigContaining {
 struct ConfigHotpress {
   uint32_t configVersion;
   uint8_t autoModeBehaviour;
+  uint16_t buttonDebounceMs;    // ON (latching) button must be stable this long, 20..2000
+  uint16_t selectorDebounceMs;  // 3-way selector must be stable this long, 20..2000
 };
 
 template <typename P>
@@ -324,6 +326,7 @@ struct Packet {
 // ---------- Size guarantees ----------
 static_assert(sizeof(MsgHeader) == 12, "header must be 12 bytes");
 static_assert(sizeof(TimePayload) == 6, "TimePayload layout changed");
+static_assert(sizeof(ConfigHotpress) == 9, "ConfigHotpress layout changed (docs/PROTOCOL.md §6)");
 static_assert(sizeof(StatusCommon) == 11, "StatusCommon layout changed");
 static_assert(sizeof(RawContainerCfg) == 31, "RawContainerCfg layout changed");
 static_assert(sizeof(ConfigContaining) == 108, "ConfigContaining layout changed (docs/PROTOCOL.md §6)");

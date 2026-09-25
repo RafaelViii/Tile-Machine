@@ -25,6 +25,10 @@ export const LIMITS = {
     stopUs: [1000, 2000],
     runUs: [500, 2500],
   },
+  hotpress: {
+    buttonDebounceMs: [20, 2000],
+    selectorDebounceMs: [20, 2000],
+  },
 } as const;
 
 export const DEFAULT_SHREDDER: ShredderConfig = {
@@ -52,6 +56,8 @@ export const DEFAULT_CONTAINING: ContainingConfig = {
 export const DEFAULT_HOTPRESS: HotpressConfig = {
   version: 0,
   autoModeBehaviour: 0,
+  buttonDebounceMs: 200,
+  selectorDebounceMs: 150,
 };
 
 /** Fill anything missing from a stored config with defaults (arrays padded to full length). */

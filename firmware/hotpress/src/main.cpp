@@ -43,6 +43,12 @@ struct Guard {
 Guard designGuard{"designing+curing"};
 Guard pressGuard{"hot press"};
 
+void useConfig() {
+  onBtn.setDebounce(cfg.buttonDebounceMs);
+  selector.setDebounce(cfg.selectorDebounceMs);
+  hubLink.setConfigVersion(cfg.configVersion);
+}
+
 bool ssrDesign = false, ssrPress = false;
 uint32_t designOnSinceMs = 0, pressOnSinceMs = 0;
 uint32_t bootMs = 0;
@@ -130,8 +136,9 @@ AckResult onConfig(const uint8_t* payload, size_t len) {
   p.begin("hotpress", false);
   p.putBytes("cfg", &cfg, sizeof(cfg));
   p.end();
-  hubLink.setConfigVersion(cfg.configVersion);
-  Serial.printf("[STATE] config v%u applied\n", (unsigned)cfg.configVersion);
+  useConfig();  // debounce changes are safe mid-run: they never switch an output on
+  Serial.printf("[STATE] config v%u applied: button debounce %u ms, selector debounce %u ms\n",
+                (unsigned)cfg.configVersion, cfg.buttonDebounceMs, cfg.selectorDebounceMs);
   hubLink.sendEvent(EventCode::CONFIG_APPLIED, (int32_t)cfg.configVersion);
   return AckResult::OK;  // nothing in this config changes a running output
 }
@@ -218,9 +225,12 @@ void setup() {
   Preferences p;
   p.begin("hotpress", false);
   ConfigHotpress c;
-  if (p.isKey("cfg") && p.getBytes("cfg", &c, sizeof(c)) == sizeof(c) && validHotpressConfig(c)) cfg = c;
+  if (p.isKey("cfg") && p.getBytesLength("cfg") == sizeof(c) && p.getBytes("cfg", &c, sizeof(c)) == sizeof(c) &&
+      validHotpressConfig(c))
+    cfg = c;  // (an older, smaller saved config is ignored: defaults until the hub sends the current one)
   p.end();
-  hubLink.setConfigVersion(cfg.configVersion);
+  useConfig();
+  Serial.printf("[STATE] debounce: button %u ms, selector %u ms\n", cfg.buttonDebounceMs, cfg.selectorDebounceMs);
 
   if (!display.begin()) {
     Serial.println("[ERROR] OLED not found at 0x3C (SDA 21 / SCL 22): running without display");
