@@ -134,3 +134,51 @@ export const LogoMark = ({ raised, ...p }: P & { raised?: boolean }) => (
     )}
   </svg>
 );
+
+/** Command button glyphs (16 px slot inside the button). */
+export const StopGlyph = (p: P) => (
+  <svg viewBox="0 0 24 24" aria-hidden {...p}>
+    <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+  </svg>
+);
+
+export const IdentifyIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="2.5" />
+    <path d="M7.5 7.5a6.4 6.4 0 000 9M16.5 7.5a6.4 6.4 0 010 9M4.6 4.6a10.5 10.5 0 000 14.8M19.4 4.6a10.5 10.5 0 010 14.8" />
+  </svg>
+);
+
+export const RebootIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M20 12a8 8 0 11-2.3-5.7M20 4v5h-5" />
+  </svg>
+);
+
+export const TareIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 20h16M6 20l2-9h8l2 9M12 11V6M9 6h6" />
+  </svg>
+);
+
+export const CalibrateIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="7" />
+    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+  </svg>
+);
+
+export const AlertIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 4l9 16H3z" />
+    <path d="M12 10v4M12 17h.01" />
+  </svg>
+);
+
+export const SpinnerIcon = (p: P) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden {...p}>
+    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2.5" opacity="0.3" />
+    <path d="M20 12a8 8 0 00-8-8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+  </svg>
+);

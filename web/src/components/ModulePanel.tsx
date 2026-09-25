@@ -43,10 +43,10 @@ export function ModulePanel({
         )}
         <div className="mt-4 flex flex-wrap gap-3">
           <CommandButton moduleId={id} type="STOP" variant="danger" disabled={!connected} disabledReason={offlineReason}>
-            ■ STOP {title}
+            STOP {title}
           </CommandButton>
           <CommandButton moduleId={id} type="IDENTIFY" disabled={!connected} disabledReason={offlineReason}>
-            Identify (beep / blink)
+            Identify
           </CommandButton>
           <CommandButton moduleId={id} type="REBOOT" variant="ghost" disabled={!connected} disabledReason={offlineReason}>
             Reboot

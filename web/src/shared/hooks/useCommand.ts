@@ -78,5 +78,8 @@ export function useCommand(moduleId: ModuleId | 'all') {
     [moduleId],
   );
 
-  return { ...state, send };
+  /** Back to idle (the button shows its normal icon again). */
+  const reset = useCallback(() => setState({ status: null, error: null }), []);
+
+  return { ...state, send, reset };
 }

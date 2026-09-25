@@ -126,6 +126,9 @@ legacy/
       column headers (Time first, `text-xs tabular-nums`; badges in their own column so text columns line up;
       right-aligned last column for results/actions) and stacked rows on phones (badge + who, then time, then text).
       Expandable details open as a full-width row under the entry.
+    - Action feedback lives INSIDE the control as an icon, never as text added around it (a "Done" label under
+      STOP ALL looked bolted on and never went away). `CommandButton`: its glyph -> spinner -> check for 2 s ->
+      glyph; a warning icon stays on failure with the reason as tooltip; status text only for screen readers.
     - Before shipping any new/changed screen: screenshot it in dark, light and 400 px, with its panels/menus open.
 - Commits: small and focused, imperative subject (`shredder: add auto warning countdown`).
 

@@ -1,20 +1,36 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ComponentType, type ReactNode, type SVGProps } from 'react';
 import { useCommand } from '../shared/hooks/useCommand';
 import type { CommandType, ModuleId } from '../shared/types/rtdb';
+import { AlertIcon, CalibrateIcon, CheckIcon, IdentifyIcon, RebootIcon, SpinnerIcon, StopGlyph, TareIcon } from './icons';
 import { Button, cx } from './ui';
 
-const statusText: Record<string, string> = {
-  sending: 'Sending…',
-  pending: 'Waiting for hub…',
-  noanswer: 'No answer from the hub. Use the physical STOP if needed',
-  sent: 'Delivered to module…',
-  done: 'Done ✓',
-  failed: 'Failed',
-  expired: 'Expired (hub too late)',
-  error: 'Error',
+const GLYPH: Record<CommandType, ComponentType<SVGProps<SVGSVGElement>>> = {
+  STOP: StopGlyph,
+  IDENTIFY: IdentifyIcon,
+  REBOOT: RebootIcon,
+  TARE: TareIcon,
+  CALIBRATE: CalibrateIcon,
 };
 
-/** Sends one command and shows its live status underneath. */
+// Read out by screen readers and shown as the tooltip; the button itself only shows an icon.
+const statusText: Record<string, string> = {
+  sending: 'Sending…',
+  pending: 'Waiting for the hub…',
+  sent: 'Delivered, waiting for the module…',
+  done: 'Done',
+  failed: 'Failed: the module did not carry it out',
+  expired: 'Expired: the hub got it too late',
+  noanswer: 'No answer from the hub. Use the physical STOP if needed',
+  error: 'Could not send',
+};
+
+const DONE_SHOW_MS = 2000;
+
+/**
+ * Sends one command. Its progress is shown by the button's own icon, so nothing appears around it:
+ * the command glyph → a spinner while it travels → ✓ for 2 s → back to the glyph. On failure a warning
+ * icon stays (tooltip says why) until the button is pressed again.
+ */
 export function CommandButton({
   moduleId,
   type,
@@ -25,7 +41,6 @@ export function CommandButton({
   disabledReason,
   children,
   className,
-  floatingStatus,
 }: {
   moduleId: ModuleId | 'all';
   type: CommandType;
@@ -36,37 +51,44 @@ export function CommandButton({
   disabledReason?: string;
   children: ReactNode;
   className?: string;
-  /** Show the status as a small label under the button without changing the layout (header use). */
-  floatingStatus?: boolean;
 }) {
-  const { status, error, send } = useCommand(moduleId);
+  const { status, error, send, reset } = useCommand(moduleId);
+
+  useEffect(() => {
+    if (status !== 'done') return;
+    const t = setTimeout(reset, DONE_SHOW_MS);
+    return () => clearTimeout(t);
+  }, [status, reset]);
+
+  const busy = status === 'sending' || status === 'pending' || status === 'sent';
+  const bad = status === 'failed' || status === 'expired' || status === 'noanswer' || status === 'error';
+  const Glyph = GLYPH[type];
+  const text = status ? statusText[status] + (error ? `: ${error}` : '') : '';
+  const title = disabled ? disabledReason : bad ? text : undefined;
+
   return (
-    <div className={floatingStatus ? 'relative' : 'flex flex-col items-start gap-1'}>
-      <Button
-        variant={variant}
-        disabled={disabled || status === 'sending'}
-        title={disabled ? disabledReason : undefined}
-        onClick={() => send(type, { target, arg })}
-        className={className}
-      >
-        {children}
-      </Button>
-      {status && (
-        <span
-          className={cx(
-            'text-xs',
-            floatingStatus && 'absolute top-full right-0 mt-1 whitespace-nowrap',
-            status === 'done'
-              ? 'text-emerald-400'
-              : status === 'failed' || status === 'expired' || status === 'error' || status === 'noanswer'
-                ? 'text-red-400'
-                : 'text-zinc-400',
-          )}
-        >
-          {statusText[status]}
-          {error ? `: ${error}` : ''}
-        </span>
-      )}
-    </div>
+    <Button
+      variant={variant}
+      disabled={disabled || status === 'sending'}
+      title={title}
+      onClick={() => send(type, { target, arg })}
+      className={className}
+    >
+      <span className="relative grid h-4 w-4 shrink-0 place-items-center" aria-hidden>
+        {busy ? (
+          <SpinnerIcon className="h-4 w-4 animate-spin" />
+        ) : status === 'done' ? (
+          <CheckIcon className="h-4 w-4" strokeWidth={2.5} />
+        ) : bad ? (
+          <AlertIcon className={cx('h-4 w-4', variant !== 'danger' && 'text-amber-300')} strokeWidth={2} />
+        ) : (
+          <Glyph className={type === 'STOP' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+        )}
+      </span>
+      {children}
+      <span className="sr-only" role="status" aria-live="polite">
+        {text}
+      </span>
+    </Button>
   );
 }

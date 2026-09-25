@@ -73,12 +73,10 @@ export function Layout() {
               moduleId="all"
               type="STOP"
               variant="danger"
-              floatingStatus
               className="h-9"
               disabled={!hubOnline}
               disabledReason="Hub offline: use the physical STOP buttons"
             >
-              <span className="h-2.5 w-2.5 rounded-[2px] bg-current" aria-hidden />
               STOP ALL
             </CommandButton>
             <span className="h-6 w-px bg-zinc-800" aria-hidden />
