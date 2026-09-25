@@ -3,6 +3,7 @@ import { LogoMark } from '../../components/icons';
 import { Navigate } from 'react-router';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import { TextField } from '../../components/TextField';
 import { Button, Spinner } from '../../components/ui';
 import { logAudit } from '../../shared/audit';
 import { deviceName } from '../../shared/presence';
@@ -65,28 +66,16 @@ export function LoginPage() {
           </div>
         </div>
 
-        <label className="block text-xs font-medium text-zinc-400">
-          Email
-          <input
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-lg bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
-          />
-        </label>
-        <label className="mt-4 block text-xs font-medium text-zinc-400">
-          Password
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
-          />
-        </label>
+        <TextField label="Email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <TextField
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-4 block"
+        />
 
         {msg && (
           <p className={msg.tone === 'error' ? 'mt-4 text-sm text-red-400' : 'mt-4 text-sm text-emerald-400'}>

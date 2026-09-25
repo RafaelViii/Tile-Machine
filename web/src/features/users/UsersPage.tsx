@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ref, serverTimestamp, update } from 'firebase/database';
 import { SlideToggle } from '../../components/SlideToggle';
+import { TextField } from '../../components/TextField';
 import { Badge, Button, Card, CardTitle, EmptyNote, PageHeader, cx } from '../../components/ui';
 import { createAccountWithoutSwitching, db, setAccountPasswordWithoutSwitching } from '../../lib/firebase';
 import { auditEntry } from '../../shared/audit';
@@ -95,21 +96,24 @@ export function UsersPage() {
   );
 }
 
+type Panel = 'rename' | 'password' | 'access' | null;
+
 function PersonRow({ p, now }: { p: Person; now: number }) {
   const { user } = useAuth();
   const isMe = p.uid === user?.uid;
-  const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(p.name);
-  const [confirmOff, setConfirmOff] = useState(false);
-  const [pwOpen, setPwOpen] = useState(false);
+  const manageable = !isMe && p.role !== 'superadmin';
+  const [panel, setPanel] = useState<Panel>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const toggle = (x: Panel) => setPanel((cur) => (cur === x ? null : x));
 
-  const run = async (fn: () => Promise<unknown>) => {
+  const setAccess = async (on: boolean) => {
     setBusy(true);
     setErr(null);
     try {
-      await fn();
+      const [ap, entry] = auditEntry('USER_ACCESS', { summary: `${on ? 'Turned on' : 'Turned off'} access for ${p.name}` });
+      await update(ref(db), { [`roles/${p.uid}`]: on ? 'operator' : null, [ap]: entry });
+      setPanel(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -117,51 +121,20 @@ function PersonRow({ p, now }: { p: Person; now: number }) {
     }
   };
 
-  const setAccess = (on: boolean) =>
-    run(() => {
-      const [ap, entry] = auditEntry('USER_ACCESS', { summary: `${on ? 'Turned on' : 'Turned off'} access for ${p.name}` });
-      return update(ref(db), { [`roles/${p.uid}`]: on ? 'operator' : null, [ap]: entry }).then(() => setConfirmOff(false));
-    });
-
-  const saveName = (e: FormEvent) => {
-    e.preventDefault();
-    const n = name.trim();
-    if (!n || n === p.name) return setRenaming(false);
-    void run(() => {
-      const [ap, entry] = auditEntry('USER_RENAME', { summary: `Renamed ${p.name} to ${n}` });
-      return update(ref(db), { [`users/${p.uid}/name`]: n, [ap]: entry }).then(() => setRenaming(false));
-    });
-  };
-
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-      <span
-        className={cx(
-          'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold',
-          p.online ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-800 text-zinc-400',
-        )}
-        title={p.online ? 'Online' : 'Offline'}
-      >
-        {(p.name[0] ?? '?').toUpperCase()}
-      </span>
-      <div className="min-w-0 flex-1">
-        {renaming ? (
-          <form onSubmit={saveName} className="flex items-center gap-2">
-            <input
-              autoFocus
-              value={name}
-              maxLength={40}
-              onChange={(e) => setName(e.target.value)}
-              className="min-w-0 rounded-md bg-zinc-950 px-2 py-1 text-sm ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
-            />
-            <Button type="submit" variant="primary" className="px-2.5 py-1 text-xs" disabled={busy}>
-              Save
-            </Button>
-            <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={() => setRenaming(false)}>
-              Cancel
-            </Button>
-          </form>
-        ) : (
+    <li className="py-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span
+          className={cx(
+            'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold',
+            p.online ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-800 text-zinc-400',
+          )}
+          title={p.online ? 'Online' : 'Offline'}
+        >
+          {(p.name[0] ?? '?').toUpperCase()}
+        </span>
+        {/* min width: on phones the buttons wrap below instead of squeezing the name */}
+        <div className="min-w-[12rem] flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{p.name}</span>
             {isMe && <span className="text-xs text-zinc-500">(you)</span>}
@@ -169,53 +142,236 @@ function PersonRow({ p, now }: { p: Person; now: number }) {
               {p.role === 'superadmin' ? 'Superadmin' : p.role === 'operator' ? 'Operator' : 'No access'}
             </Badge>
           </div>
-        )}
-        <div className="truncate text-xs text-zinc-500">{p.email}</div>
-        <div className={cx('text-xs', p.online ? 'text-emerald-300' : 'text-zinc-500')}>
-          {p.online ? `Online · ${p.where}` : p.lastSeen ? `Last seen ${ago(p.lastSeen, now)}` : 'Never signed in'}
+          <div className="truncate text-xs text-zinc-500">{p.email}</div>
+          <div className={cx('text-xs', p.online ? 'text-emerald-300' : 'text-zinc-500')}>
+            {p.online ? `Online · ${p.where}` : p.lastSeen ? `Last seen ${ago(p.lastSeen, now)}` : 'Never signed in'}
+          </div>
         </div>
-        {err && <div className="text-xs text-red-400">{err}</div>}
-        {pwOpen && <OperatorPassword p={p} onClose={() => setPwOpen(false)} />}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Link to={`/activity?uid=${p.uid}`} className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">
-          Activity
-        </Link>
-        {!renaming && (
-          <Button variant="ghost" onClick={() => setRenaming(true)}>
+        <div className="flex flex-wrap items-center gap-1 max-sm:ml-11">
+          <Link
+            to={`/activity?uid=${p.uid}`}
+            className="rounded-lg px-3.5 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800"
+          >
+            Activity
+          </Link>
+          <Button variant="ghost" onClick={() => toggle('rename')} aria-expanded={panel === 'rename'}>
             Rename
           </Button>
-        )}
-        {!isMe && p.role !== 'superadmin' && p.email && !pwOpen && (
-          <Button variant="ghost" onClick={() => setPwOpen(true)}>
-            Password
-          </Button>
-        )}
-        {!isMe && p.role !== 'superadmin' && (
-          confirmOff ? (
-            <span className="flex items-center gap-2 rounded-lg bg-red-500/10 px-2 py-1 text-sm text-red-300">
-              Turn off access?
-              <Button variant="danger" className="px-2.5 py-1 text-xs" disabled={busy} onClick={() => setAccess(false)}>
-                Turn off
-              </Button>
-              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setConfirmOff(false)}>
-                Cancel
-              </Button>
-            </span>
-          ) : (
-            <div className="w-40">
+          {manageable && p.email && (
+            <Button variant="ghost" onClick={() => toggle('password')} aria-expanded={panel === 'password'}>
+              Reset password
+            </Button>
+          )}
+          {manageable && (
+            <div className="ml-1 w-40">
               <SlideToggle
                 value={p.role === 'operator' ? 'on' : 'off'}
                 left={{ value: 'off', label: 'No access' }}
                 right={{ value: 'on', label: 'Access' }}
                 disabled={busy}
-                onChange={(v) => (v === 'on' ? void setAccess(true) : setConfirmOff(true))}
+                onChange={(v) => (v === 'on' ? void setAccess(true) : setPanel('access'))}
               />
             </div>
-          )
-        )}
+          )}
+        </div>
       </div>
+
+      {/* One panel at a time, below the row (same pattern as the Devices list). */}
+      {panel && (
+        <div className="mt-3 sm:ml-13">
+          {panel === 'rename' && <RenamePanel p={p} onClose={() => setPanel(null)} />}
+          {panel === 'password' && <PasswordPanel p={p} onClose={() => setPanel(null)} />}
+          {panel === 'access' && (
+            <PanelBox
+              title={`Turn off access for ${p.name}?`}
+              text="Their open pages lock at once and they can't sign in to Tile Console until you turn it back on."
+              footer={
+                <>
+                  {err && <span className="mr-auto text-xs text-red-400">{err}</span>}
+                  <Button variant="ghost" onClick={() => setPanel(null)}>
+                    Cancel
+                  </Button>
+                  <Button variant="danger" disabled={busy} onClick={() => void setAccess(false)}>
+                    {busy ? 'Turning off…' : 'Turn off access'}
+                  </Button>
+                </>
+              }
+            />
+          )}
+        </div>
+      )}
     </li>
+  );
+}
+
+/** Inner block used by every panel: title, short explanation, optional fields, buttons on the right. */
+function PanelBox({
+  title,
+  text,
+  children,
+  footer,
+  onSubmit,
+}: {
+  title: string;
+  text?: string;
+  children?: ReactNode;
+  footer: ReactNode;
+  onSubmit?: (e: FormEvent) => void;
+}) {
+  const body = (
+    <>
+      <div className="text-sm font-semibold">{title}</div>
+      {text && <p className="mt-0.5 text-xs text-zinc-500">{text}</p>}
+      {children && <div className="mt-4">{children}</div>}
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">{footer}</div>
+    </>
+  );
+  const cls = 'max-w-3xl rounded-xl bg-zinc-950/60 p-4 ring-1 ring-zinc-800';
+  return onSubmit ? (
+    <form onSubmit={onSubmit} className={cls}>
+      {body}
+    </form>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+function Msg({ m }: { m: { ok: boolean; text: string } | null }) {
+  if (!m) return null;
+  return <span className={cx('mr-auto text-xs', m.ok ? 'text-emerald-300' : 'text-red-400')}>{m.text}</span>;
+}
+
+function RenamePanel({ p, onClose }: { p: Person; onClose: () => void }) {
+  const [name, setName] = useState(p.name);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const n = name.trim();
+    if (!n) return setMsg({ ok: false, text: 'Type a name.' });
+    if (n === p.name) return onClose();
+    setBusy(true);
+    try {
+      const [ap, entry] = auditEntry('USER_RENAME', { summary: `Renamed ${p.name} to ${n}` });
+      await update(ref(db), { [`users/${p.uid}/name`]: n, [ap]: entry });
+      onClose();
+    } catch (e2) {
+      setMsg({ ok: false, text: e2 instanceof Error ? e2.message : String(e2) });
+      setBusy(false);
+    }
+  };
+  return (
+    <PanelBox
+      title="Rename"
+      text="The name shown in Users, Activity and the account menu. The sign-in email stays the same."
+      onSubmit={submit}
+      footer={
+        <>
+          <Msg m={msg} />
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? 'Saving…' : 'Save name'}
+          </Button>
+        </>
+      }
+    >
+      <TextField
+        label="Name"
+        value={name}
+        maxLength={40}
+        autoFocus
+        onChange={(e) => setName(e.target.value)}
+        className="block max-w-xs"
+      />
+    </PanelBox>
+  );
+}
+
+/** Superadmin resets an operator's password (needs the current one: see setAccountPasswordWithoutSwitching). */
+function PasswordPanel({ p, onClose }: { p: Person; onClose: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [again, setAgain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!current) return setMsg({ ok: false, text: 'Type their current password.' });
+    if (next.length < 8) return setMsg({ ok: false, text: 'The new password needs at least 8 characters.' });
+    if (next !== again) return setMsg({ ok: false, text: "The new passwords don't match." });
+    if (next === current) return setMsg({ ok: false, text: 'The new password is the same as the current one.' });
+    setBusy(true);
+    setMsg(null);
+    try {
+      await setAccountPasswordWithoutSwitching(p.email, current, next);
+      const [ap, entry] = auditEntry('USER_PASSWORD', { summary: `Reset the password of ${p.name}` });
+      await update(ref(db), { [ap]: entry }).catch(() => {});
+      setMsg({ ok: true, text: `Done. ${p.name} signs in with the new password from now on.` });
+      setCurrent('');
+      setNext('');
+      setAgain('');
+    } catch (e2) {
+      const code = e2 instanceof Error ? e2.message : String(e2);
+      setMsg({
+        ok: false,
+        text: /invalid-credential|wrong-password|invalid-login/.test(code)
+          ? 'The current password is wrong. If nobody knows it, add a new account and turn this one off.'
+          : /too-many-requests/.test(code)
+            ? 'Too many attempts. Wait a few minutes and try again.'
+            : code,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <PanelBox
+      title={`Reset password for ${p.name}`}
+      text={`Type the password you gave ${p.name}, then the new one. They'll need to sign in again with it.`}
+      onSubmit={submit}
+      footer={
+        <>
+          <Msg m={msg} />
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {msg?.ok ? 'Close' : 'Cancel'}
+          </Button>
+          {!msg?.ok && (
+            <Button type="submit" variant="primary" disabled={busy}>
+              {busy ? 'Resetting…' : 'Reset password'}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="grid gap-4 sm:grid-cols-3">
+        <TextField
+          label="Current password"
+          type="password"
+          autoComplete="off"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+        <TextField
+          label="New password"
+          hint="At least 8 characters"
+          type="password"
+          autoComplete="new-password"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+        />
+        <TextField
+          label="Repeat new password"
+          type="password"
+          autoComplete="new-password"
+          value={again}
+          onChange={(e) => setAgain(e.target.value)}
+        />
+      </div>
+    </PanelBox>
   );
 }
 
@@ -225,18 +381,18 @@ function AddOperator({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const n = name.trim();
     const em = email.trim().toLowerCase();
-    if (!n) return setErr('Type a name.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return setErr('Type a valid email (it can be made up, like ana@tile-machine.local).');
-    if (password.length < 8) return setErr('Password: at least 8 characters.');
+    if (!n) return setMsg({ ok: false, text: 'Type a name.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
+      return setMsg({ ok: false, text: 'Type a valid email. It can be made up, like ana@tile-machine.local.' });
+    if (password.length < 8) return setMsg({ ok: false, text: 'The password needs at least 8 characters.' });
     setBusy(true);
-    setErr(null);
+    setMsg(null);
     try {
       const uid = await createAccountWithoutSwitching(em, password);
       const [ap, entry] = auditEntry('USER_ADD', { summary: `Added operator ${n} (${em})` });
@@ -245,135 +401,59 @@ function AddOperator({ onClose }: { onClose: () => void }) {
         [`users/${uid}`]: { email: em, name: n, createdAt: serverTimestamp(), createdBy: user?.uid ?? '' },
         [ap]: entry,
       });
-      setDone(`${n} can now sign in with ${em} and the password you set.`);
+      setMsg({ ok: true, text: `${n} can now sign in with ${em} and the password you set.` });
       setName('');
       setEmail('');
       setPassword('');
     } catch (e2) {
       const m = e2 instanceof Error ? e2.message : String(e2);
-      setErr(
-        /email-already-in-use/.test(m)
-          ? 'This email already has an account. If it is in the list, turn its access on there.'
-          : /weak-password/.test(m)
-            ? 'Password too weak: use at least 8 characters.'
-            : m,
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const field =
-    'mt-1 w-full rounded-lg bg-zinc-950 px-3 py-2 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500';
-  return (
-    <Card className="mb-6">
-      <CardTitle>Add operator</CardTitle>
-      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-3">
-        <label className="block text-xs text-zinc-400">
-          Name
-          <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} className={field} placeholder="Ana" />
-        </label>
-        <label className="block text-xs text-zinc-400">
-          Email (login)
-          <input
-            value={email}
-            autoCapitalize="none"
-            autoComplete="off"
-            onChange={(e) => setEmail(e.target.value)}
-            className={field}
-            placeholder="ana@tile-machine.local"
-          />
-        </label>
-        <label className="block text-xs text-zinc-400">
-          Password (8+ characters)
-          <input
-            value={password}
-            type="password"
-            autoComplete="new-password"
-            onChange={(e) => setPassword(e.target.value)}
-            className={field}
-          />
-        </label>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Adding…' : 'Add operator'}
-          </Button>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-          {err && <span className="text-sm text-red-400">{err}</span>}
-          {done && <span className="text-sm text-emerald-300">{done}</span>}
-        </div>
-      </form>
-    </Card>
-  );
-}
-
-/** Superadmin sets an operator's password (needs their current one: see setAccountPasswordWithoutSwitching). */
-function OperatorPassword({ p, onClose }: { p: Person; onClose: () => void }) {
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [again, setAgain] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (next.length < 8) return setMsg({ ok: false, text: 'New password: at least 8 characters.' });
-    if (next !== again) return setMsg({ ok: false, text: 'The new passwords are not the same.' });
-    if (next === current) return setMsg({ ok: false, text: 'The new password is the same as the current one.' });
-    setBusy(true);
-    setMsg(null);
-    try {
-      await setAccountPasswordWithoutSwitching(p.email, current, next);
-      const [ap, entry] = auditEntry('USER_PASSWORD', { summary: `Changed the password of ${p.name}` });
-      await update(ref(db), { [ap]: entry }).catch(() => {});
-      setMsg({ ok: true, text: `Password changed. ${p.name} must sign in again with the new one.` });
-      setCurrent('');
-      setNext('');
-      setAgain('');
-    } catch (e2) {
-      const code = e2 instanceof Error ? e2.message : String(e2);
       setMsg({
         ok: false,
-        text: /invalid-credential|wrong-password|invalid-login/.test(code)
-          ? 'Current password is wrong. If nobody knows it: add a new operator account and turn this one off.'
-          : /too-many-requests/.test(code)
-            ? 'Too many attempts. Wait a few minutes.'
-            : /user-disabled/.test(code)
-              ? 'This account is disabled in Firebase.'
-              : code,
+        text: /email-already-in-use/.test(m)
+          ? 'This email already has an account. If it is in the list, turn its access on there.'
+          : /weak-password/.test(m)
+            ? 'That password is too weak. Use at least 8 characters.'
+            : m,
       });
     } finally {
       setBusy(false);
     }
   };
 
-  const field =
-    'mt-1 w-full rounded-lg bg-zinc-950 px-2.5 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500';
   return (
-    <form onSubmit={submit} className="mt-3 grid max-w-xl gap-2 rounded-xl bg-zinc-950/60 p-3 ring-1 ring-zinc-800 sm:grid-cols-3">
-      <label className="block text-xs text-zinc-400">
-        Current password
-        <input type="password" autoComplete="off" value={current} onChange={(e) => setCurrent(e.target.value)} className={field} />
-      </label>
-      <label className="block text-xs text-zinc-400">
-        New password (8+)
-        <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={field} />
-      </label>
-      <label className="block text-xs text-zinc-400">
-        New password again
-        <input type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} className={field} />
-      </label>
-      <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
-        <Button type="submit" variant="primary" className="px-3 py-1.5 text-xs" disabled={busy || !current || !next}>
-          {busy ? 'Changing…' : 'Change password'}
-        </Button>
-        <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" onClick={onClose}>
-          {msg?.ok ? 'Done' : 'Cancel'}
-        </Button>
-        {msg && <span className={cx('text-xs', msg.ok ? 'text-emerald-300' : 'text-red-400')}>{msg.text}</span>}
-      </div>
-    </form>
+    <Card className="mb-6">
+      <CardTitle>Add operator</CardTitle>
+      <form onSubmit={submit}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <TextField label="Name" value={name} maxLength={40} placeholder="Ana" onChange={(e) => setName(e.target.value)} />
+          <TextField
+            label="Sign-in email"
+            hint="Can be made up, like ana@tile-machine.local"
+            value={email}
+            autoCapitalize="none"
+            autoComplete="off"
+            placeholder="ana@tile-machine.local"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <TextField
+            label="Password"
+            hint="At least 8 characters. Give it to the operator."
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+          <Msg m={msg} />
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? 'Adding…' : 'Add operator'}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }

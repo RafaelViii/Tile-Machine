@@ -61,16 +61,19 @@ const variantClasses: Record<Variant, string> = {
   subtle: 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700',
 };
 
+/** md = every page action; sm = compact (inside menus, small links like "Show more"). */
 export function Button({
   variant = 'subtle',
+  size = 'md',
   className,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'md' | 'sm' }) {
   return (
     <button
       {...rest}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition',
+        size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-3.5 py-2 text-sm',
         'focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none',
         'disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],

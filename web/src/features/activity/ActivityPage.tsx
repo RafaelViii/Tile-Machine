@@ -200,13 +200,9 @@ function ActivityRow({ r, who }: { r: Row; who: string }) {
           <Badge tone={r.result === 'done' ? 'green' : 'red'}>{r.result === 'done' ? 'Done' : r.result === 'failed' ? 'Failed' : 'Expired'}</Badge>
         )}
         {n > 0 && (
-          <button
-            type="button"
-            onClick={() => setOpen(!open)}
-            className="rounded-md px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)} aria-expanded={open}>
             {open ? 'Hide' : `${n} change${n === 1 ? '' : 's'}`}
-          </button>
+          </Button>
         )}
       </div>
       {open && n > 0 && (

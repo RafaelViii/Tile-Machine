@@ -3,7 +3,7 @@ import { limitToLast, onValue, orderByChild, query, ref } from 'firebase/databas
 import { db } from '../../lib/firebase';
 import { Link } from 'react-router';
 import { ContainerIcon, HotpressIcon, HubIcon, ShredderIcon } from '../../components/icons';
-import { Badge, Card, CardTitle, Stat, cx } from '../../components/ui';
+import { Badge, Button, Card, CardTitle, Stat, cx } from '../../components/ui';
 import { ago, dateTime, faultList, uptime } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
 import type { HubDiag, HubLogNode, ModuleId } from '../../shared/types/rtdb';
@@ -251,9 +251,9 @@ function HubLog() {
     <div className="mt-4">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold">Hub log</span>
-        <button type="button" onClick={() => setAll(!all)} className="rounded-md px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+        <Button variant="ghost" size="sm" onClick={() => setAll(!all)}>
           {all ? 'Show less' : 'Show more'}
-        </button>
+        </Button>
       </div>
       {rows === undefined ? (
         <p className="text-xs text-zinc-500">Loading…</p>

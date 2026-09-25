@@ -148,7 +148,7 @@ function RawCard({ i, cfg, update, live, hxOk, connected }: {
             <span className="text-xs text-zinc-500">How long the screws run for each amount.</span>
             <Button
               variant="ghost"
-              className="px-2 py-1 text-xs"
+              size="sm"
               onClick={() => set({ timeTableMs: r.timeTableMs.map((_, k) => Math.min(L.timeTableMs[1], r.timeTableMs[0] * (k + 1))) })}
             >
               Fill linearly from 1 kg

@@ -108,6 +108,21 @@ legacy/
   - Corners: 4 steps only, nested always smaller: card `rounded-2xl` 20, block inside a card `rounded-xl` 12, control (button, input, tab, row) `rounded-lg` 10, item inside a menu or segmented control `rounded-md` 8, pills `rounded-full`.
   - Type: sentence-case titles (no uppercase or letter-spacing), `tabular-nums` for values (no mono), 12 px minimum.
   - No status dots or glow; state is shown by tile or badge colour, or a tinted icon.
+  - **Reuse the shared components, never hand-style a look-alike** (a Users-page panel once drifted: tiny buttons,
+    other input padding, lighter labels):
+    - Inputs: `TextField` (text/email/password) and `NumberField` (numbers) from `web/src/components`. Labels are
+      theirs (`text-xs font-medium text-zinc-400`); hints go in `hint`. Only allowed raw inputs: the preset name
+      inside its menu, the grams box beside Tare/Calibrate, range sliders.
+    - Buttons: `Button` with its size: default `md` for every page action; `size="sm"` only inside menus/popovers
+      and for small text links ("Show more", "n changes"). Never override padding/text size with `className`.
+    - Card forms and panels: fields in a `grid gap-4 sm:grid-cols-N`, then a footer row
+      `flex flex-wrap items-center justify-end gap-2`: message on the left (`mr-auto text-xs`), then ghost
+      Cancel/Close, then the primary action (danger for destructive ones). Same as the Machine presets card.
+    - Per-row actions (lists like Devices, Users): the row itself never changes layout; details, edit forms and
+      confirmations open in ONE panel BELOW the row (`rounded-xl bg-zinc-950/60 p-4 ring-1 ring-zinc-800`,
+      title + one-line explanation + fields + footer as above). Row text gets a min width so buttons wrap below
+      it on phones instead of squeezing it.
+    - Before shipping any new/changed screen: screenshot it in dark, light and 400 px, with its panels/menus open.
 - Commits: small and focused, imperative subject (`shredder: add auto warning countdown`).
 
 ## 7. Commands

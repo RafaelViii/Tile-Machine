@@ -107,12 +107,12 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
               ) : mode.kind === 'delete' && mode.id === p.id ? (
                 <li key={p.id} className="flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1.5">
                   <span className="min-w-0 flex-1 truncate text-sm text-red-300">Delete “{p.name}”?</span>
-                  <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setMode({ kind: 'list' })}>
+                  <Button variant="ghost" size="sm" onClick={() => setMode({ kind: 'list' })}>
                     Cancel
                   </Button>
                   <Button
                     variant="danger"
-                    className="px-2 py-1 text-xs"
+                    size="sm"
                     disabled={busy}
                     onClick={() =>
                       run(async () => {
@@ -253,10 +253,10 @@ function NameForm({
           onChange={(e) => setName(e.target.value)}
           className="min-w-0 flex-1 rounded-md bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
         />
-        <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={onCancel}>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" className="px-2.5 py-1 text-xs" disabled={busy || !trimmed || dup}>
+        <Button type="submit" variant="primary" size="sm" disabled={busy || !trimmed || dup}>
           {submitLabel}
         </Button>
       </div>

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../features/auth/auth';
 import { useDismiss } from '../shared/hooks/useDismiss';
 import { ChevronDown, LogoutIcon } from './icons';
+import { TextField } from './TextField';
 import { ThemeToggle } from './ThemeToggle';
 import { Button, cx } from './ui';
 
@@ -127,28 +128,17 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
     }
   };
 
-  const field =
-    'mt-1 w-full rounded-md bg-zinc-950 px-2.5 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500';
   return (
-    <form onSubmit={submit} className="space-y-2 px-2.5 py-2">
-      <label className="block text-xs text-zinc-500">
-        Current password
-        <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={field} />
-      </label>
-      <label className="block text-xs text-zinc-500">
-        New password
-        <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={field} />
-      </label>
-      <label className="block text-xs text-zinc-500">
-        New password again
-        <input type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} className={field} />
-      </label>
+    <form onSubmit={submit} className="space-y-3 px-2.5 py-2">
+      <TextField label="Current password" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+      <TextField label="New password" hint="At least 8 characters" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+      <TextField label="Repeat new password" type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} />
       {msg && <p className={cx('text-xs', msg.ok ? 'text-emerald-300' : 'text-red-400')}>{msg.text}</p>}
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={onDone}>
+        <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           {msg?.ok ? 'Done' : 'Cancel'}
         </Button>
-        <Button type="submit" variant="primary" className="px-2.5 py-1.5 text-xs" disabled={busy || !current || !next}>
+        <Button type="submit" variant="primary" size="sm" disabled={busy || !current || !next}>
           {busy ? 'Saving…' : 'Change'}
         </Button>
       </div>
