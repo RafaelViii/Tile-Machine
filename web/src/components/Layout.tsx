@@ -29,8 +29,8 @@ export function Layout() {
       <header className="bar sticky top-0 z-30 border-b border-zinc-800 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <LogoMark className="h-6 w-6" />
-            <span className="hidden text-base font-bold tracking-tight sm:inline">Tile Machine</span>
+            <LogoMark raised className="h-9 w-9" />
+            <span className="hidden text-lg font-bold tracking-tight sm:inline">Tile Machine</span>
           </div>
 
           <Badge tone={hubOnline ? 'green' : loading ? 'zinc' : 'red'}>

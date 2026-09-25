@@ -54,7 +54,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <form onSubmit={submit} className="surface w-full max-w-sm rounded-2xl border p-7">
         <div className="mb-6 flex items-center gap-3">
-          <LogoMark className="h-10 w-10" />
+          <LogoMark raised className="h-12 w-12" />
           <div>
             <h1 className="text-xl font-bold">Tile Machine</h1>
             <p className="text-xs text-zinc-400">Control dashboard</p>
