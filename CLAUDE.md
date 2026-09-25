@@ -104,6 +104,10 @@ legacy/
   with committed `*.example` templates.
 - Web: feature folders under `web/src/features/*`, Firebase access only through
   `web/src/lib/firebase.ts` and hooks.
+- Web design rules (Apple-like, calm; see the `@theme` comment in `web/src/index.css`):
+  - Corners: 4 steps only, nested always smaller: card `rounded-2xl` 20, block inside a card `rounded-xl` 12, control (button, input, tab, row) `rounded-lg` 10, item inside a menu or segmented control `rounded-md` 8, pills `rounded-full`.
+  - Type: sentence-case titles (no uppercase or letter-spacing), `tabular-nums` for values (no mono), 12 px minimum.
+  - No status dots or glow; state is shown by tile or badge colour, or a tinted icon.
 - Commits: small and focused, imperative subject (`shredder: add auto warning countdown`).
 
 ## 7. Commands

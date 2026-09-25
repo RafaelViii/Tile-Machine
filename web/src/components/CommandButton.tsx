@@ -53,7 +53,7 @@ export function CommandButton({
       {status && (
         <span
           className={cx(
-            'text-[11px]',
+            'text-xs',
             floatingStatus && 'absolute top-full right-0 mt-1 whitespace-nowrap',
             status === 'done'
               ? 'text-emerald-400'

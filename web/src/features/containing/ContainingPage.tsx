@@ -52,7 +52,7 @@ function LiveRow({ c, hxOk, isRaw }: { c?: ContainerState; hxOk: boolean; isRaw:
             style={{ width: `${Math.min(100, Math.max(0, c.progressPct))}%` }}
           />
         </div>
-        <span className="w-10 text-right font-mono text-xs text-zinc-400">{c.progressPct}%</span>
+        <span className="w-10 text-right text-xs text-zinc-400 tabular-nums">{c.progressPct}%</span>
       </div>
     </div>
   );
@@ -63,7 +63,7 @@ function Calibration({ index, connected }: { index: number; connected: boolean }
   const reason = 'Module not connected';
   return (
     <div className="mt-4 rounded-xl bg-zinc-950/60 p-3 ring-1 ring-zinc-800">
-      <div className="mb-2 text-[11px] tracking-wide text-zinc-500 uppercase">Load cell</div>
+      <div className="mb-2 text-xs text-zinc-500">Load cell</div>
       <div className="flex flex-wrap items-start gap-3">
         <CommandButton moduleId="containing" type="TARE" target={index} disabled={!connected} disabledReason={reason}>
           Tare (zero)
@@ -75,7 +75,7 @@ function Calibration({ index, connected }: { index: number; connected: boolean }
             max={50000}
             value={grams}
             onChange={(e) => setGrams(Math.max(100, Math.min(50000, Number(e.target.value) || 0)))}
-            className="w-24 rounded-lg bg-zinc-950 px-2 py-2 font-mono text-sm ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
+            className="w-24 rounded-lg bg-zinc-950 px-2 py-2 text-sm tabular-nums ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
             aria-label="Known weight in grams"
           />
           <CommandButton
@@ -90,7 +90,7 @@ function Calibration({ index, connected }: { index: number; connected: boolean }
           </CommandButton>
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-zinc-500">Empty the container → Tare. Put a known weight in → Calibrate.</p>
+      <p className="mt-2 text-xs text-zinc-500">Empty the container → Tare. Put a known weight in → Calibrate.</p>
     </div>
   );
 }
@@ -112,7 +112,7 @@ function RawCard({ i, cfg, update, live, hxOk, connected }: {
 
   return (
     <Card>
-      <CardTitle right={<span className="text-[11px] text-zinc-500">{CONTROLS[i]}</span>}>
+      <CardTitle right={<span className="text-xs text-zinc-500">{CONTROLS[i]}</span>}>
         C{i + 1} · {NAMES[i]}
       </CardTitle>
       <LiveRow c={live} hxOk={hxOk} isRaw />
@@ -145,7 +145,7 @@ function RawCard({ i, cfg, update, live, hxOk, connected }: {
             ))}
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] text-zinc-500">How long the screws run for each amount.</span>
+            <span className="text-xs text-zinc-500">How long the screws run for each amount.</span>
             <Button
               variant="ghost"
               className="px-2 py-1 text-xs"
@@ -209,7 +209,7 @@ function MixedCard({ i, cfg, update, live, hxOk, connected }: {
 
   return (
     <Card>
-      <CardTitle right={<span className="text-[11px] text-zinc-500">{CONTROLS[idx]}</span>}>
+      <CardTitle right={<span className="text-xs text-zinc-500">{CONTROLS[idx]}</span>}>
         C{idx + 1} · {NAMES[idx]}
       </CardTitle>
       <LiveRow c={live} hxOk={hxOk} isRaw={false} />
@@ -237,7 +237,7 @@ function MixedCard({ i, cfg, update, live, hxOk, connected }: {
             step={0.5}
             unit="s"
           />
-          <p className="mt-2 text-[11px] text-zinc-500">To run again: move the selector back to the middle, then to this side.</p>
+          <p className="mt-2 text-xs text-zinc-500">To run again: move the selector back to the middle, then to this side.</p>
         </div>
       ) : (
         <p className="mt-4 text-xs text-zinc-400">Runs while the selector is on this side and stops at the middle position.</p>
@@ -253,7 +253,7 @@ function Advanced({ cfg, update, calFactor }: { cfg: ContainingConfig; update: U
   return (
     <Card className="mt-6">
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between text-left">
-        <span className="text-sm font-semibold tracking-wide text-zinc-300 uppercase">Advanced · servos & load cells</span>
+        <span className="text-base font-semibold text-zinc-100">Advanced · servos & load cells</span>
         <span className="text-xs text-zinc-500">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open && (
@@ -299,7 +299,7 @@ function Advanced({ cfg, update, calFactor }: { cfg: ContainingConfig; update: U
               />
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-zinc-500">
+          <p className="mt-2 text-xs text-zinc-500">
             Stored on the Containing board and set only by the Calibrate buttons above, so saving config never changes them.
           </p>
         </div>

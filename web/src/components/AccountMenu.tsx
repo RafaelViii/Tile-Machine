@@ -33,17 +33,19 @@ export function AccountMenu() {
       </button>
 
       {open && (
-        <div role="menu" className="popover absolute top-full right-0 z-40 mt-2 w-64 rounded-xl border p-2">
-          <div className="px-2 pt-1 pb-2">
-            <div className="text-[11px] tracking-wide text-zinc-500 uppercase">Signed in as</div>
+        <div role="menu" className="popover absolute top-full right-0 z-40 mt-2 w-64 rounded-xl border p-1">
+          <div className="px-2.5 pt-2 pb-2">
+            <div className="text-xs text-zinc-500">Signed in as</div>
             <div className="truncate text-sm text-zinc-200" title={email}>
               {email}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-2 py-2.5">
+          <div className="mx-2.5 h-px bg-zinc-800" />
+          <div className="flex items-center justify-between gap-2 px-2.5 py-2">
             <span className="text-sm text-zinc-400">Theme</span>
             <ThemeToggle />
           </div>
+          <div className="mx-2.5 mb-1 h-px bg-zinc-800" />
           <button
             type="button"
             role="menuitem"
@@ -51,7 +53,7 @@ export function AccountMenu() {
               close();
               void logout();
             }}
-            className="flex w-full items-center gap-2 rounded-lg border-t border-zinc-800 px-2 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/70"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/70"
           >
             <LogoutIcon className="h-4 w-4" />
             Sign out

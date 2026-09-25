@@ -88,19 +88,19 @@ function ProcessTile({ p, m }: { p: Process; m: MachineStatus }) {
     <Link
       to={p.to}
       className={cx(
-        'group relative flex min-h-36 flex-col lg:min-h-40 lg:flex-1 lg:basis-40 items-center justify-center gap-2 rounded-2xl border p-4 text-center transition',
+        'group relative flex min-h-36 flex-col lg:min-h-40 lg:flex-1 lg:basis-40 items-center justify-center gap-2 rounded-xl border p-4 text-center transition',
         connected
           ? 'tile-connected border-emerald-500/40 bg-emerald-500/[0.04]'
           : 'tile-off border-zinc-800 bg-zinc-900/40',
       )}
     >
-      <span className="absolute top-3 left-3 font-mono text-[10px] text-zinc-500">{p.esp}</span>
+      <span className="absolute top-3 left-3 text-xs text-zinc-500">{p.esp}</span>
       <p.Icon className={cx('h-10 w-10', connected ? 'text-emerald-300' : 'text-zinc-500')} />
       <div className="font-semibold">{p.name}</div>
       <div className={cx('text-xs font-medium', connected ? 'text-emerald-300' : 'text-zinc-500')}>
         {connected ? 'Connected' : 'Not connected'}
       </div>
-      {summary && <div className="font-mono text-[11px] text-zinc-400">{summary}</div>}
+      {summary && <div className="text-xs text-zinc-400 tabular-nums">{summary}</div>}
     </Link>
   );
 }

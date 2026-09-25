@@ -127,7 +127,7 @@ export function EventsPage() {
         <Button disabled={page === 1} onClick={goNewer}>
           ← Newer
         </Button>
-        <span className="px-1 font-mono text-sm text-zinc-400">Page {page}</span>
+        <span className="px-1 text-sm text-zinc-400 tabular-nums">Page {page}</span>
         <Button disabled={!hasOlder || rows === undefined} onClick={goOlder}>
           Older →
         </Button>
@@ -177,7 +177,7 @@ export function EventsPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="text-[11px] tracking-wide text-zinc-500 uppercase">
+                <thead className="text-xs font-medium text-zinc-500">
                   <tr>
                     <th className="py-2 pr-4 font-medium">Time</th>
                     <th className="py-2 pr-4 font-medium">Source</th>
@@ -188,12 +188,12 @@ export function EventsPage() {
                 <tbody className="divide-y divide-zinc-800">
                   {rows.map((e) => (
                     <tr key={e.id} data-event-id={e.id}>
-                      <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap text-zinc-400">{dateTime(e.ts)}</td>
+                      <td className="py-2 pr-4 text-xs whitespace-nowrap text-zinc-400 tabular-nums">{dateTime(e.ts)}</td>
                       <td className="py-2 pr-4 capitalize">{e.module}</td>
                       <td className="py-2 pr-4">
                         <Badge tone={tone(e.code)}>{humanize(e.code)}</Badge>
                       </td>
-                      <td className="py-2 font-mono text-xs text-zinc-500">{details(e)}</td>
+                      <td className="py-2 text-xs text-zinc-500 tabular-nums">{details(e)}</td>
                     </tr>
                   ))}
                 </tbody>

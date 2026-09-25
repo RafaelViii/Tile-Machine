@@ -27,11 +27,11 @@ export function SlideToggle<T extends string>({
       aria-checked={isRight}
       disabled={disabled}
       onClick={() => onChange(isRight ? left.value : right.value)}
-      className="relative grid w-full max-w-xs grid-cols-2 rounded-full bg-zinc-950 p-1 text-xs font-semibold ring-1 ring-zinc-700 disabled:opacity-50"
+      className="relative grid w-full max-w-xs grid-cols-2 rounded-lg bg-zinc-950 p-0.5 text-xs font-semibold ring-1 ring-zinc-700 disabled:opacity-50"
     >
       <span
         className={cx(
-          'absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-emerald-500 transition-transform duration-200',
+          'absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-0.125rem)] rounded-md bg-emerald-500 transition-transform duration-200',
           isRight && 'translate-x-full',
         )}
       />

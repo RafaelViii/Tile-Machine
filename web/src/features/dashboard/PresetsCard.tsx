@@ -61,14 +61,14 @@ export function PresetsCard() {
                       {MODULE_NAMES[id]}
                     </Link>
                     {!modules[id].connected && (
-                      <span className="text-[11px] text-zinc-500">offline: applies on reconnect</span>
+                      <span className="text-xs text-zinc-500">offline: applies on reconnect</span>
                     )}
                   </div>
                   <ul className="space-y-1.5">
                     {rows.map((r) => (
                       <li key={r.label} className="text-xs">
                         <div className="text-zinc-400">{r.label}</div>
-                        <div className="font-mono">
+                        <div className="tabular-nums">
                           <span className="text-zinc-500 line-through">{r.from}</span>
                           <span className="px-1.5 text-zinc-600">→</span>
                           <span className="text-emerald-300">{r.to}</span>

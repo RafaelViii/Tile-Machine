@@ -35,7 +35,7 @@ export function ConfigBar({
     <div className="bar sticky bottom-3 z-20 mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 px-4 py-3 shadow-lg backdrop-blur">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
         <Badge tone={b.tone}>{b.text}</Badge>
-        {version > 0 && <span className="font-mono">v{version}</span>}
+        {version > 0 && <span className="tabular-nums">v{version}</span>}
         {sync === 'pending' && !connected && <span>Module offline, so it applies on reconnect.</span>}
         {dirty[id] && <span className="text-amber-300">Unsaved changes</span>}
         {others.length > 0 && (

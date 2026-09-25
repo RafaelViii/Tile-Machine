@@ -109,7 +109,7 @@ export function ShredderPage() {
               onChange={(e) => cfg.update((c) => ({ ...c, buzzerVolumePct: Number(e.target.value) }))}
               className="mt-2 w-full accent-emerald-500"
             />
-            <span className="block text-[11px] text-zinc-500">0% mutes everything except the E-STOP alarm.</span>
+            <span className="block text-xs text-zinc-500">0% mutes everything except the E-STOP alarm.</span>
           </label>
         </div>
       </Card>

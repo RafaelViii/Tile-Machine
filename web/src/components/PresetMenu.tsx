@@ -72,9 +72,7 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
           {active ? active.name : <span className="text-zinc-400">No preset</span>}
         </span>
         {edited && (
-          <span className="shrink-0 rounded bg-amber-500/15 px-1.5 text-[10px] font-semibold text-amber-300 uppercase">
-            edited
-          </span>
+          <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-300">Edited</span>
         )}
         <ChevronDown className={cx('h-4 w-4 shrink-0 text-zinc-500 transition', open && 'rotate-180')} />
       </button>
@@ -83,11 +81,11 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
         <div
           role="menu"
           className={cx(
-            'popover absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border p-2',
+            'popover absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border p-1',
             placement === 'up' ? 'bottom-full mb-2' : 'top-full mt-2',
           )}
         >
-          <div className="px-2 pt-1 pb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">Presets</div>
+          <div className="px-2.5 pt-1.5 pb-1 text-xs text-zinc-500">Presets</div>
 
           <ul className="max-h-64 overflow-y-auto">
             {loading && <li className="px-2 py-2 text-sm text-zinc-500">Loading…</li>}
@@ -107,7 +105,7 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
                   />
                 </li>
               ) : mode.kind === 'delete' && mode.id === p.id ? (
-                <li key={p.id} className="flex items-center gap-2 rounded-lg bg-red-500/10 px-2 py-1.5">
+                <li key={p.id} className="flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1.5">
                   <span className="min-w-0 flex-1 truncate text-sm text-red-300">Delete “{p.name}”?</span>
                   <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setMode({ kind: 'list' })}>
                     Cancel
@@ -127,7 +125,7 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
                   </Button>
                 </li>
               ) : (
-                <li key={p.id} className="group flex items-center rounded-lg hover:bg-zinc-800/70">
+                <li key={p.id} className="group flex items-center rounded-md hover:bg-zinc-800/70">
                   <button
                     type="button"
                     role="menuitem"
@@ -156,7 +154,7 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
                 type="button"
                 disabled={busy}
                 onClick={() => run(() => overwrite(active.id, drafts.current))}
-                className="w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-emerald-300 hover:bg-zinc-800/70 disabled:opacity-40"
+                className="w-full truncate rounded-md px-2.5 py-1.5 text-left text-sm text-emerald-300 hover:bg-zinc-800/70 disabled:opacity-40"
               >
                 Update “{active.name}” with current settings
               </button>
@@ -181,7 +179,7 @@ export function PresetMenu({ placement = 'down' }: { placement?: 'up' | 'down' }
               <button
                 type="button"
                 onClick={() => setMode({ kind: 'new' })}
-                className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-800/70"
+                className="w-full rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-300 hover:bg-zinc-800/70"
               >
                 + Save current settings as new preset
               </button>
@@ -253,7 +251,7 @@ function NameForm({
           maxLength={PRESET_NAME_MAX}
           placeholder="Preset name"
           onChange={(e) => setName(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
+          className="min-w-0 flex-1 rounded-md bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500"
         />
         <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={onCancel}>
           Cancel
@@ -262,7 +260,7 @@ function NameForm({
           {submitLabel}
         </Button>
       </div>
-      {dup && <p className="mt-1 text-[11px] text-amber-300">A preset with this name already exists.</p>}
+      {dup && <p className="mt-1 text-xs text-amber-300">A preset with this name already exists.</p>}
     </form>
   );
 }

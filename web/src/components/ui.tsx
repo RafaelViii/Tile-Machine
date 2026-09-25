@@ -15,7 +15,7 @@ export function Card({ children, className }: { children: ReactNode; className?:
 export function CardTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h2 className="text-sm font-semibold tracking-wide text-zinc-300 uppercase">{children}</h2>
+      <h2 className="text-base font-semibold text-zinc-100">{children}</h2>
       {right}
     </div>
   );
@@ -83,10 +83,10 @@ export function Button({
 export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: Tone }) {
   return (
     <div className="rounded-xl bg-zinc-950/60 px-3 py-2.5 ring-1 ring-zinc-800">
-      <div className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</div>
+      <div className="text-xs text-zinc-500">{label}</div>
       <div
         className={cx(
-          'mt-0.5 font-mono text-sm',
+          'mt-0.5 text-sm font-medium tabular-nums',
           tone === 'green' && 'text-emerald-300',
           tone === 'amber' && 'text-amber-300',
           tone === 'red' && 'text-red-300',
@@ -111,7 +111,7 @@ export function PageHeader({ title, subtitle, right }: { title: string; subtitle
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>}
       </div>
       {right}

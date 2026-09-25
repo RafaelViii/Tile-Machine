@@ -47,7 +47,7 @@ export function NumberField({
         <input
           type="number"
           inputMode="decimal"
-          className="w-full min-w-0 bg-transparent px-3 py-2 font-mono text-sm outline-none disabled:opacity-50"
+          className="w-full min-w-0 bg-transparent px-3 py-2 text-sm tabular-nums outline-none disabled:opacity-50"
           value={text}
           step={step}
           min={min / scale}
@@ -60,7 +60,7 @@ export function NumberField({
         {unit && <span className="pr-3 text-xs text-zinc-500">{unit}</span>}
       </div>
       {hint && (
-        <span className="mt-1 block text-[11px] text-zinc-500">
+        <span className="mt-1 block text-xs text-zinc-500">
           {hint} · range {min / scale}–{max / scale}
           {unit ? ` ${unit}` : ''}
         </span>

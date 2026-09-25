@@ -18,7 +18,7 @@ function RelayTile({ name, on, detail, Icon }: {
   return (
     <div
       className={cx(
-        'flex flex-col items-center gap-2 rounded-2xl border p-5 text-center',
+        'flex flex-col items-center gap-2 rounded-xl border p-5 text-center',
         on ? 'border-orange-500/50 bg-orange-500/[0.08]' : 'border-zinc-800 bg-zinc-950/60',
       )}
     >
@@ -71,7 +71,7 @@ export function HotpressPage() {
               <Stat label="Relay 2 (Hotpress)" value={s.relayHotpress ? 'ON' : 'OFF'} />
             </div>
             {s.stopLatched && (
-              <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/30">
+              <p className="mt-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-300 ring-1 ring-red-500/30">
                 Stopped remotely. Turn the ON button OFF and the selector to the middle to reset.
               </p>
             )}
@@ -105,7 +105,7 @@ export function HotpressPage() {
             unit="ms"
           />
         </div>
-        <p className="mt-3 text-[11px] text-zinc-500">
+        <p className="mt-3 text-xs text-zinc-500">
           Applied right away: a longer filter never turns anything on, it only ignores contact chatter.
         </p>
       </Card>

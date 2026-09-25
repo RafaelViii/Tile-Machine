@@ -39,7 +39,7 @@ export function Layout() {
               type="STOP"
               variant="danger"
               floatingStatus
-              className="h-9 tracking-wide"
+              className="h-9"
               disabled={!hubOnline}
               disabledReason="Hub offline: use the physical STOP buttons"
             >
