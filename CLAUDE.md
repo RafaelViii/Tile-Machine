@@ -141,7 +141,7 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [~] Phase 3: Shredder firmware (firmware/shredder, fw 0.2.0) **running on the real board (COM8)**: OLED layout self-test passes, paired + clock from hub, web config v1 applied and saved to NVS. **Still to test by hand:** switch modes, START/STOP, IR, buzzer sounds, relay.
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
-- [~] Phase 6: Web: original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
+- [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [ ] Phase 7: Hardening: ESP-NOW encryption, WiFi provisioning portal, OTA
 
 ## 9. Open questions / pending decisions
