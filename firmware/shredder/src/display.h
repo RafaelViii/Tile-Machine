@@ -27,6 +27,8 @@ class Display {
   bool begin();
   bool present() const { return present_; }
   void draw(const View& v);
+  /** Renders every screen (worst case) off-screen; returns how many texts left their zone. */
+  int selfTest();
 
  private:
   bool present_ = false;

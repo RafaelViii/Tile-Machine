@@ -136,7 +136,7 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       See docs/modules/hub.md for the HTTPClient-blocking and slow-DNS fixes.
 - [x] Link test on the real Shredder board (COM8): paired with the hub 0.1 s after boot, got the RTC
       clock, and Firebase shows it online. Auto-pairing is proven end to end.
-- [~] Phase 3: Shredder firmware written (firmware/shredder, fw 0.2.0): OFF/MANUAL/AUTO state machine, passive-buzzer sounds, SH1106 screens, NVS config, web STOP/IDENTIFY/REBOOT, power-up interlock, relay safety net. Compiles with 0 warnings. **Hardware test pending.**
+- [~] Phase 3: Shredder firmware (firmware/shredder, fw 0.2.0) **running on the real board (COM8)**: OLED layout self-test passes, paired + clock from hub, web config v1 applied and saved to NVS. **Still to test by hand:** switch modes, START/STOP, IR, buzzer sounds, relay.
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [ ] Phase 6: Web polish after real hardware testing (config pages, commands and event log already built)

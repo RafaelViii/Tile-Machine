@@ -394,7 +394,12 @@ void setup() {
   loadConfig();
   useConfig();
 
-  if (!display.begin()) Serial.println("[ERROR] OLED not found at 0x3C (SDA 21 / SCL 22): running without display");
+  if (!display.begin()) {
+    Serial.println("[ERROR] OLED not found at 0x3C (SDA 21 / SCL 22): running without display");
+  } else {
+    const int bad = display.selfTest();
+    Serial.printf("[STATE] OLED layout self-test: %s\n", bad ? "OVERFLOW (see errors above)" : "all screens fit");
+  }
 
   // Power-up interlock (safety invariant 3): the switch must be seen at OFF first.
   if (modeSw.position() != ShredderMode::OFF || modeSw.wiringFault()) {
