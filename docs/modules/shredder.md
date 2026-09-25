@@ -74,6 +74,23 @@ Top status bar on every screen: mode, IR ● / ○, and a link icon (hub connect
 
 Uses the legacy non-blocking **queued pattern player**, extended with a frequency per step.
 
+## Input filtering and noise (fw 0.2.2 – 0.2.4)
+
+- Every input (3-way switch AUTO/MANUAL contacts, START, STOP, IR) goes through the shared
+  **integrating filter** (lib/TileIO `IntegratingFilter`): the score moves ±1 per ms and the
+  value only changes at the ends of the window, so short spikes can't flip it.
+- Filter windows come from the web config (fw 0.2.4): `switchDebounceMs` (default 250, 20..2000)
+  for both switch contacts, `buttonDebounceMs` (default 50, 10..500, kept short so STOP stays
+  fast) for START/STOP, `irDebounceMs` for the IR sensor. They are applied when the config is
+  applied (idle only, like every config change).
+- This is a software workaround for the weak internal pull-ups: in the hardware test the switch
+  contacts dropped out for more than 100 ms. Recommended hardware fix: 3.3 kΩ pull-up to 3.3 V +
+  100 nF to GND on GPIO25, 26, 32 and 33.
+- A **noise monitor** (lib/TileIO `PinNoiseMonitor`) counts edges per second and sets a fault bit
+  for 10 s after a noisy second. Fault bits: 0x01 switch wiring (both contacts closed), 0x02 OLED
+  missing, 0x04 START noisy, 0x08 STOP noisy, 0x10 switch AUTO contact noisy, 0x20 switch MANUAL
+  contact noisy, 0x40 IR noisy. The web Devices list shows them by name.
+
 ## Power-up interlock (fw 0.2.1)
 
 Every boot starts in `INTERLOCK`. It unlocks only after the switch has read **OFF continuously for

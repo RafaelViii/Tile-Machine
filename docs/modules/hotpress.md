@@ -49,7 +49,8 @@ timed press cycle, trigger from Containing "DONE" event through the hub) will be
   OLED) until that input goes back to OFF / middle.
 - Events: `RUN_STARTED` / `RUN_FINISHED` with arg0 = unit (0 Designing+Curing, 1 Hot Press) and
   arg1 = seconds on. `ESTOP_PRESSED` (arg0 = 1, remote) if STOP switched something off.
-- Faults: bit0 selector wiring (both contacts closed), bit1 OLED missing.
+- Faults: bit0 selector wiring (both contacts closed), bit1 OLED missing. Since fw 0.1.3 also
+  noise: bit2 ON button, bit3 selector LEFT, bit4 selector RIGHT (see below; the web names them).
 
 ## ON button noise (fw 0.1.2)
 

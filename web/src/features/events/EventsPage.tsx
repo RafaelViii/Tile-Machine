@@ -18,10 +18,11 @@ interface Cursor {
 
 const PAGE_SIZES = [25, 50, 100] as const;
 
-// HUB_BOOT arg0 = esp_reset_reason_t (hub fw >= 0.2.1)
+// HUB_BOOT arg0 = esp_reset_reason_t (hub fw >= 0.2.1). On the ESP32 the EN button and the USB
+// auto-reset (serial port / flashing) also report POWERON, so 1 can't tell those apart from a power cut.
 const RESET_REASONS: Record<number, string> = {
-  1: 'power-on',
-  2: 'reset button (EN)',
+  1: 'power-on, EN button or USB reset',
+  2: 'external reset pin',
   3: 'software restart',
   4: 'crash (panic)',
   5: 'interrupt watchdog',
@@ -34,7 +35,9 @@ const RESET_REASONS: Record<number, string> = {
 
 function details(e: Row): string {
   if (e.code === 'HUB_BOOT' && e.args && e.args[0]) return RESET_REASONS[e.args[0]] ?? `reset reason ${e.args[0]}`;
-  return e.args?.join(', ') ?? '';
+  // Most events carry [0, 0] (no extra data): show nothing rather than "0, 0".
+  if (!e.args || e.args.every((a) => !a)) return '';
+  return e.args.join(', ');
 }
 
 function tone(code: string): 'green' | 'amber' | 'red' | 'zinc' | 'sky' {
@@ -175,7 +178,23 @@ export function EventsPage() {
                 : 'No older events.'}
             </EmptyNote>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Phone: stacked rows (event + source, then time + details). */}
+            <ul className="divide-y divide-zinc-800 sm:hidden">
+              {rows.map((e) => (
+                <li key={e.id} data-event-id={e.id} className="py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge tone={tone(e.code)}>{humanize(e.code)}</Badge>
+                    <span className="text-sm capitalize">{e.module}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between gap-3 text-xs text-zinc-500 tabular-nums">
+                    <span className="whitespace-nowrap">{dateTime(e.ts)}</span>
+                    <span className="text-right">{details(e)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-left text-sm">
                 <thead className="text-xs font-medium text-zinc-500">
                   <tr>
@@ -191,7 +210,9 @@ export function EventsPage() {
                       <td className="py-2 pr-4 text-xs whitespace-nowrap text-zinc-400 tabular-nums">{dateTime(e.ts)}</td>
                       <td className="py-2 pr-4 capitalize">{e.module}</td>
                       <td className="py-2 pr-4">
-                        <Badge tone={tone(e.code)}>{humanize(e.code)}</Badge>
+                        <span className="whitespace-nowrap">
+                          <Badge tone={tone(e.code)}>{humanize(e.code)}</Badge>
+                        </span>
                       </td>
                       <td className="py-2 text-xs text-zinc-500 tabular-nums">{details(e)}</td>
                     </tr>
@@ -199,6 +220,7 @@ export function EventsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
         {rows && rows.length > 10 && <div className="mt-4">{pager}</div>}

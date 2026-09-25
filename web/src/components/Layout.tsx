@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { useMachine } from '../shared/machine';
 import { AccountMenu } from './AccountMenu';
@@ -17,6 +17,18 @@ const links = [
 export function Layout() {
   const { hubOnline, loading } = useMachine();
   const { pathname } = useLocation();
+
+  const nav = useRef<HTMLElement>(null);
+  const [more, setMore] = useState(false);
+  const checkMore = () => {
+    const el = nav.current;
+    setMore(!!el && el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  };
+  useEffect(() => {
+    checkMore();
+    window.addEventListener('resize', checkMore);
+    return () => window.removeEventListener('resize', checkMore);
+  }, []);
 
   // Each page opens at the top instead of keeping the previous page's scroll.
   // Block body on purpose: newer browsers return a Promise from scrollTo, which React would treat as a cleanup.
@@ -52,7 +64,15 @@ export function Layout() {
         </div>
 
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 pb-2">
-          <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+          {/* On phones the tabs scroll sideways; a fade on the right shows there is more until the end is reached. */}
+          <nav
+            ref={nav}
+            onScroll={checkMore}
+            className={cx(
+              'flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]',
+              more && '[mask-image:linear-gradient(to_right,black_80%,transparent)]',
+            )}
+          >
             {links.map((l) => (
               <NavLink
                 key={l.to}
