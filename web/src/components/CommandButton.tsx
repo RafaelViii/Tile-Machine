@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useCommand } from '../shared/hooks/useCommand';
 import type { CommandType, ModuleId } from '../shared/types/rtdb';
-import { Button } from './ui';
+import { Button, cx } from './ui';
 
 const statusText: Record<string, string> = {
   sending: 'Sending…',
@@ -24,6 +24,7 @@ export function CommandButton({
   disabledReason,
   children,
   className,
+  floatingStatus,
 }: {
   moduleId: ModuleId | 'all';
   type: CommandType;
@@ -34,10 +35,12 @@ export function CommandButton({
   disabledReason?: string;
   children: ReactNode;
   className?: string;
+  /** Show the status as a small label under the button without changing the layout (header use). */
+  floatingStatus?: boolean;
 }) {
   const { status, error, send } = useCommand(moduleId);
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className={floatingStatus ? 'relative' : 'flex flex-col items-start gap-1'}>
       <Button
         variant={variant}
         disabled={disabled || status === 'sending'}
@@ -49,13 +52,15 @@ export function CommandButton({
       </Button>
       {status && (
         <span
-          className={
+          className={cx(
+            'text-[11px]',
+            floatingStatus && 'absolute top-full right-0 mt-1 whitespace-nowrap',
             status === 'done'
-              ? 'text-[11px] text-emerald-400'
+              ? 'text-emerald-400'
               : status === 'failed' || status === 'expired' || status === 'error'
-                ? 'text-[11px] text-red-400'
-                : 'text-[11px] text-zinc-400'
-          }
+                ? 'text-red-400'
+                : 'text-zinc-400',
+          )}
         >
           {statusText[status]}
           {error ? `: ${error}` : ''}

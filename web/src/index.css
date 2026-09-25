@@ -83,6 +83,12 @@
   border-color: var(--surface-border);
   box-shadow: var(--surface-shadow);
 }
+/* Dropdown menu: same edge as a Card but opaque (Card is translucent in dark mode). */
+.popover {
+  background-color: var(--color-zinc-900);
+  border-color: var(--surface-border);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
 /* Sticky header bar. */
 .bar {
   background-color: var(--bar-bg);

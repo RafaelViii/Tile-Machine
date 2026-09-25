@@ -65,6 +65,18 @@ while the hub doesn't know the time.
     }
   },
 
+  "presets": {                     // web (admin only), whole-machine setups
+    "<pushId>": {
+      "name": "HDPE thick tiles",  // 1..40 chars, unique (case-insensitive) in the web UI
+      "createdAt": 1758600000000,
+      "updatedAt": 1758600000000,
+      "by": "<uid>",
+      "shredder":   { /* module config without "version" */ },
+      "containing": { /* ... */ },
+      "hotpress":   { /* ... */ }
+    }
+  },
+
   "events": {
     "<pushId>": {
       "ts": 1758600000000,
@@ -122,6 +134,14 @@ while the hub doesn't know the time.
 // hotpress
 { "version": 1, "autoModeBehaviour": 0, "buttonDebounceMs": 200, "selectorDebounceMs": 150 }
 ```
+
+## Presets (web only)
+
+A preset is a named copy of all three module configs. The hub never reads `/presets`. Picking a
+preset only fills the forms in the browser; the admin then presses Save, which writes each changed
+`modules/{id}/config` with a new `version` as usual. So a preset can never bypass the normal
+versioned config path or the module's apply-when-idle rule. A missing module or field in a preset
+falls back to the defaults (`normalizeConfig`), so presets saved before a new field existed still load.
 
 ## Web ↔ process mapping (dashboard tiles)
 

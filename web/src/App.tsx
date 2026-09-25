@@ -8,6 +8,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { EventsPage } from './features/events/EventsPage';
 import { HotpressPage } from './features/hotpress/HotpressPage';
 import { ShredderPage } from './features/shredder/ShredderPage';
+import { ConfigDraftsProvider } from './shared/configDrafts';
 import { MachineProvider } from './shared/machine';
 
 export function App() {
@@ -20,7 +21,9 @@ export function App() {
             element={
               <RequireAdmin>
                 <MachineProvider>
-                  <Layout />
+                  <ConfigDraftsProvider>
+                    <Layout />
+                  </ConfigDraftsProvider>
                 </MachineProvider>
               </RequireAdmin>
             }

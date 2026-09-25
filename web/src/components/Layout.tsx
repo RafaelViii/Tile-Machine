@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { useAuth } from '../features/auth/auth';
 import { useMachine } from '../shared/machine';
+import { AccountMenu } from './AccountMenu';
 import { CommandButton } from './CommandButton';
 import { HubIcon } from './icons';
-import { ThemeToggle } from './ThemeToggle';
-import { Badge, Button, StatusDot, cx } from './ui';
+import { Badge, StatusDot, cx } from './ui';
 
 const links = [
   { to: '/', label: 'Dashboard', end: true },
@@ -16,7 +15,6 @@ const links = [
 ];
 
 export function Layout() {
-  const { user, logout } = useAuth();
   const { hubOnline, loading } = useMachine();
   const { pathname } = useLocation();
 
@@ -29,10 +27,10 @@ export function Layout() {
   return (
     <div className="min-h-screen">
       <header className="bar sticky top-0 z-30 border-b border-zinc-800 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <div className="flex items-center gap-2.5">
             <img src="/favicon.svg" alt="" className="h-7 w-7" />
-            <span className="text-base font-bold tracking-tight">Tile Machine</span>
+            <span className="hidden text-base font-bold tracking-tight sm:inline">Tile Machine</span>
           </div>
 
           <Badge tone={hubOnline ? 'green' : loading ? 'zinc' : 'red'}>
@@ -41,21 +39,21 @@ export function Layout() {
             {hubOnline && <StatusDot on />}
           </Badge>
 
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <ThemeToggle />
+          <div className="ml-auto flex items-center gap-3">
             <CommandButton
               moduleId="all"
               type="STOP"
               variant="danger"
+              floatingStatus
+              className="h-9 tracking-wide"
               disabled={!hubOnline}
               disabledReason="Hub offline: use the physical STOP buttons"
             >
-              ■ STOP ALL
+              <span className="h-2.5 w-2.5 rounded-[2px] bg-current" aria-hidden />
+              STOP ALL
             </CommandButton>
-            <span className="hidden text-xs text-zinc-500 md:inline">{user?.email}</span>
-            <Button variant="ghost" onClick={logout}>
-              Sign out
-            </Button>
+            <span className="h-6 w-px bg-zinc-800" aria-hidden />
+            <AccountMenu />
           </div>
         </div>
 

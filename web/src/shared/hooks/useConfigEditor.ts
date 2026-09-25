@@ -1,57 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ref, runTransaction } from 'firebase/database';
-import { db } from '../../lib/firebase';
-import { normalizeConfig } from '../configDefaults';
+import { useCallback } from 'react';
+import { useConfigDrafts } from '../configDrafts';
 import type { ConfigApplied, ConfigByModule, ModuleId } from '../types/rtdb';
 
 export type SyncState = 'never' | 'synced' | 'pending' | 'queued' | 'rejected';
 
 /**
- * Editable draft of a module's config. Saving bumps `version` in a transaction
- * (the RTDB rules require a strictly increasing version).
+ * Editable draft of one module's config. Drafts live in <ConfigDraftsProvider> so they survive
+ * page changes and a preset can fill every module at once.
  */
 export function useConfigEditor<M extends ModuleId>(
   id: M,
   stored: ConfigByModule[M] | undefined,
   applied: ConfigApplied | undefined,
 ) {
-  const saved = useMemo(() => normalizeConfig(id, stored), [id, stored]);
-  const [draft, setDraft] = useState<ConfigByModule[M]>(saved);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Follow the stored config while the user hasn't touched the form.
-  useEffect(() => {
-    if (!dirty) setDraft(saved);
-  }, [saved, dirty]);
-
-  const update = useCallback((fn: (d: ConfigByModule[M]) => ConfigByModule[M]) => {
-    setDraft((d) => fn(structuredClone(d)));
-    setDirty(true);
-  }, []);
-
-  const reset = useCallback(() => {
-    setDraft(saved);
-    setDirty(false);
-    setError(null);
-  }, [saved]);
-
-  const save = useCallback(async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await runTransaction(ref(db, `modules/${id}/config`), (current) => {
-        const prev = (current as { version?: number } | null)?.version ?? 0;
-        return { ...draft, version: prev + 1 };
-      });
-      setDirty(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  }, [id, draft]);
+  const d = useConfigDrafts();
+  const saved = d.saved[id];
+  const setDraft = d.update;
+  const update = useCallback(
+    (fn: (c: ConfigByModule[M]) => ConfigByModule[M]) => setDraft(id, fn),
+    [id, setDraft],
+  );
 
   const sync: SyncState = !stored
     ? 'never'
@@ -63,5 +31,5 @@ export function useConfigEditor<M extends ModuleId>(
           : 'synced'
       : 'pending';
 
-  return { draft, update, dirty, saving, error, save, reset, sync, version: saved.version };
+  return { draft: d.current[id] as ConfigByModule[M], update, dirty: d.dirty[id], sync, version: saved.version };
 }

@@ -114,7 +114,7 @@ export function ShredderPage() {
         </div>
       </Card>
 
-      <ConfigBar {...cfg} connected={connected} onSave={cfg.save} onReset={cfg.reset} />
+      <ConfigBar id="shredder" sync={cfg.sync} version={cfg.version} connected={connected} />
     </ModulePanel>
   );
 }

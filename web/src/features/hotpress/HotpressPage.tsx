@@ -118,7 +118,7 @@ export function HotpressPage() {
         </p>
       </Card>
 
-      <ConfigBar {...cfg} connected={connected} onSave={cfg.save} onReset={cfg.reset} />
+      <ConfigBar id="hotpress" sync={cfg.sync} version={cfg.version} connected={connected} />
     </ModulePanel>
   );
 }

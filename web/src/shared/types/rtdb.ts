@@ -162,6 +162,18 @@ export interface CommandNode {
   updatedAt?: number;
 }
 
+// ---------- /presets/{pushId} ----------
+/** A named whole-machine setup. Module configs are stored without `version`. */
+export interface PresetNode {
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  by: string;
+  shredder?: Omit<ShredderConfig, 'version'>;
+  containing?: Omit<ContainingConfig, 'version'>;
+  hotpress?: Omit<HotpressConfig, 'version'>;
+}
+
 // ---------- /events/{pushId} ----------
 export interface EventNode {
   ts: number;

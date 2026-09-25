@@ -56,6 +56,17 @@
       }
     },
 
+    "presets": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+      "$presetId": {
+        ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+        ".validate": "newData.hasChildren(['name', 'createdAt', 'updatedAt'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+        }
+      }
+    },
+
     "events": {
       ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
       ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'",

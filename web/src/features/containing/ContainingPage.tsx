@@ -332,7 +332,7 @@ export function ContainingPage() {
         <MixedCard i={1} cfg={d} update={cfg.update} live={s?.containers?.[3]} hxOk={hxOk(3)} connected={connected} />
       </div>
       <Advanced cfg={d} update={cfg.update} calFactor={s?.calFactor} />
-      <ConfigBar {...cfg} connected={connected} onSave={cfg.save} onReset={cfg.reset} />
+      <ConfigBar id="containing" sync={cfg.sync} version={cfg.version} connected={connected} />
     </ModulePanel>
   );
 }
