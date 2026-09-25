@@ -51,7 +51,7 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <form onSubmit={submit} className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900/70 p-7">
+      <form onSubmit={submit} className="surface w-full max-w-sm rounded-2xl border p-7">
         <div className="mb-6 flex items-center gap-3">
           <img src="/favicon.svg" alt="" className="h-10 w-10" />
           <div>

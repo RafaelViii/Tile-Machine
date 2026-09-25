@@ -8,27 +8,33 @@
 
 :root {
   color-scheme: dark;
+  /* Surfaces (panels, header, idle tiles). Dark values reproduce the original look exactly. */
+  --surface-bg: color-mix(in oklab, var(--color-zinc-900) 60%, transparent);
+  --surface-border: var(--color-zinc-800);
+  --surface-shadow: none;
+  --bar-bg: color-mix(in oklab, var(--color-zinc-950) 90%, transparent);
+  --tile-off-opacity: 0.5;
 }
 
 /* ------------------------------------------------------------------------------------------
-   Light mode. Dark mode keeps Tailwind's default zinc palette untouched. Light mode reverses the
-   zinc scale (backgrounds become light, text becomes dark) and darkens the status text shades so
-   they stay readable on white. Set twice: explicit choice (data-theme) and "Auto" following the
-   device setting.
+   Light mode. Dark mode keeps Tailwind's default zinc palette untouched. Light mode swaps the
+   zinc scale for a cool grey one (light page, white panels, dark text), gives panels a real
+   border + soft shadow, and darkens the status text shades so they read well on white.
+   Declared twice: explicit choice (data-theme) and "Auto" following the device setting.
    ------------------------------------------------------------------------------------------ */
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-zinc-50: #09090b;
-  --color-zinc-100: #18181b;
-  --color-zinc-200: #27272a;
-  --color-zinc-300: #3f3f46;
-  --color-zinc-400: #52525c;
-  --color-zinc-500: #71717b;
-  --color-zinc-600: #a1a1aa;
-  --color-zinc-700: #d4d4d8;
-  --color-zinc-800: #e4e4e7;
+  --color-zinc-50: #0a0b0d;
+  --color-zinc-100: #14171c;
+  --color-zinc-200: #22262d;
+  --color-zinc-300: #343a43;
+  --color-zinc-400: #4a515c;
+  --color-zinc-500: #626a76;
+  --color-zinc-600: #9aa1ab;
+  --color-zinc-700: #c7ccd3;
+  --color-zinc-800: #dde1e6;
   --color-zinc-900: #ffffff;
-  --color-zinc-950: #f4f4f5;
+  --color-zinc-950: #eef1f4;
   --color-emerald-300: #047857;
   --color-emerald-400: #059669;
   --color-amber-300: #b45309;
@@ -36,21 +42,26 @@
   --color-red-400: #dc2626;
   --color-sky-300: #0369a1;
   --color-orange-300: #c2410c;
+  --surface-bg: #ffffff;
+  --surface-border: #dde1e6;
+  --surface-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 2px 6px rgb(16 24 40 / 0.05);
+  --bar-bg: rgb(255 255 255 / 0.92);
+  --tile-off-opacity: 0.85;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --color-zinc-50: #09090b;
-    --color-zinc-100: #18181b;
-    --color-zinc-200: #27272a;
-    --color-zinc-300: #3f3f46;
-    --color-zinc-400: #52525c;
-    --color-zinc-500: #71717b;
-    --color-zinc-600: #a1a1aa;
-    --color-zinc-700: #d4d4d8;
-    --color-zinc-800: #e4e4e7;
+    --color-zinc-50: #0a0b0d;
+    --color-zinc-100: #14171c;
+    --color-zinc-200: #22262d;
+    --color-zinc-300: #343a43;
+    --color-zinc-400: #4a515c;
+    --color-zinc-500: #626a76;
+    --color-zinc-600: #9aa1ab;
+    --color-zinc-700: #c7ccd3;
+    --color-zinc-800: #dde1e6;
     --color-zinc-900: #ffffff;
-    --color-zinc-950: #f4f4f5;
+    --color-zinc-950: #eef1f4;
     --color-emerald-300: #047857;
     --color-emerald-400: #059669;
     --color-amber-300: #b45309;
@@ -58,7 +69,31 @@
     --color-red-400: #dc2626;
     --color-sky-300: #0369a1;
     --color-orange-300: #c2410c;
+    --surface-bg: #ffffff;
+    --surface-border: #dde1e6;
+    --surface-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 2px 6px rgb(16 24 40 / 0.05);
+    --bar-bg: rgb(255 255 255 / 0.92);
+    --tile-off-opacity: 0.85;
   }
+}
+
+/* Panel surface (Card). */
+.surface {
+  background-color: var(--surface-bg);
+  border-color: var(--surface-border);
+  box-shadow: var(--surface-shadow);
+}
+/* Sticky header bar. */
+.bar {
+  background-color: var(--bar-bg);
+}
+/* Process tile whose module isn't connected: faded, grey. Less faded in light mode. */
+.tile-off {
+  opacity: var(--tile-off-opacity);
+  filter: grayscale(1);
+}
+.tile-off:hover {
+  opacity: min(1, calc(var(--tile-off-opacity) + 0.2));
 }
 
 html,

@@ -28,7 +28,7 @@ export function Layout() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
+      <header className="bar sticky top-0 z-30 border-b border-zinc-800 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
           <div className="flex items-center gap-2.5">
             <img src="/favicon.svg" alt="" className="h-7 w-7" />

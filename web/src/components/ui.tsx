@@ -6,7 +6,7 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5', className)}>
+    <section className={cx('surface rounded-2xl border p-5', className)}>
       {children}
     </section>
   );

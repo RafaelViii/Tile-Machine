@@ -90,7 +90,7 @@ function ProcessTile({ p, m }: { p: Process; m: MachineStatus }) {
         'group relative flex min-h-36 flex-col lg:min-h-40 lg:flex-1 lg:basis-40 items-center justify-center gap-2 rounded-2xl border p-4 text-center transition',
         connected
           ? 'tile-connected border-emerald-500/50 bg-emerald-500/[0.07]'
-          : 'border-zinc-800 bg-zinc-900/40 opacity-50 grayscale hover:opacity-70',
+          : 'tile-off border-zinc-800 bg-zinc-900/40',
       )}
     >
       <span className="absolute top-3 left-3 font-mono text-[10px] text-zinc-500">{p.esp}</span>
