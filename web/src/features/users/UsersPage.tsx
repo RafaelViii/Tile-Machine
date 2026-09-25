@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { ref, serverTimestamp, update } from 'firebase/database';
 import { SlideToggle } from '../../components/SlideToggle';
 import { Badge, Button, Card, CardTitle, EmptyNote, PageHeader, cx } from '../../components/ui';
-import { createAccountWithoutSwitching, db } from '../../lib/firebase';
+import { createAccountWithoutSwitching, db, setAccountPasswordWithoutSwitching } from '../../lib/firebase';
 import { auditEntry } from '../../shared/audit';
 import { ago } from '../../shared/format';
 import { useValue } from '../../shared/hooks/useValue';
@@ -87,9 +87,9 @@ export function UsersPage() {
         )}
       </Card>
       <p className="mt-4 text-xs text-zinc-500">
-        Operators can do everything on the machine pages. Turning access off locks their open pages at once. A
-        forgotten operator password can't be reset from here: they can change it themselves in the account menu,
-        or you can add a new account and turn the old one off.
+        Operators can do everything on the machine pages, but can't change passwords or add accounts: only you
+        can. Turning access off locks their open pages at once. To change an operator's password you need their
+        current one (you set it); if nobody knows it, add a new account and turn the old one off.
       </p>
     </>
   );
@@ -101,6 +101,7 @@ function PersonRow({ p, now }: { p: Person; now: number }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(p.name);
   const [confirmOff, setConfirmOff] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -174,6 +175,7 @@ function PersonRow({ p, now }: { p: Person; now: number }) {
           {p.online ? `Online · ${p.where}` : p.lastSeen ? `Last seen ${ago(p.lastSeen, now)}` : 'Never signed in'}
         </div>
         {err && <div className="text-xs text-red-400">{err}</div>}
+        {pwOpen && <OperatorPassword p={p} onClose={() => setPwOpen(false)} />}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Link to={`/activity?uid=${p.uid}`} className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800">
@@ -182,6 +184,11 @@ function PersonRow({ p, now }: { p: Person; now: number }) {
         {!renaming && (
           <Button variant="ghost" onClick={() => setRenaming(true)}>
             Rename
+          </Button>
+        )}
+        {!isMe && p.role !== 'superadmin' && p.email && !pwOpen && (
+          <Button variant="ghost" onClick={() => setPwOpen(true)}>
+            Password
           </Button>
         )}
         {!isMe && p.role !== 'superadmin' && (
@@ -299,5 +306,74 @@ function AddOperator({ onClose }: { onClose: () => void }) {
         </div>
       </form>
     </Card>
+  );
+}
+
+/** Superadmin sets an operator's password (needs their current one: see setAccountPasswordWithoutSwitching). */
+function OperatorPassword({ p, onClose }: { p: Person; onClose: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [again, setAgain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (next.length < 8) return setMsg({ ok: false, text: 'New password: at least 8 characters.' });
+    if (next !== again) return setMsg({ ok: false, text: 'The new passwords are not the same.' });
+    if (next === current) return setMsg({ ok: false, text: 'The new password is the same as the current one.' });
+    setBusy(true);
+    setMsg(null);
+    try {
+      await setAccountPasswordWithoutSwitching(p.email, current, next);
+      const [ap, entry] = auditEntry('USER_PASSWORD', { summary: `Changed the password of ${p.name}` });
+      await update(ref(db), { [ap]: entry }).catch(() => {});
+      setMsg({ ok: true, text: `Password changed. ${p.name} must sign in again with the new one.` });
+      setCurrent('');
+      setNext('');
+      setAgain('');
+    } catch (e2) {
+      const code = e2 instanceof Error ? e2.message : String(e2);
+      setMsg({
+        ok: false,
+        text: /invalid-credential|wrong-password|invalid-login/.test(code)
+          ? 'Current password is wrong. If nobody knows it: add a new operator account and turn this one off.'
+          : /too-many-requests/.test(code)
+            ? 'Too many attempts. Wait a few minutes.'
+            : /user-disabled/.test(code)
+              ? 'This account is disabled in Firebase.'
+              : code,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const field =
+    'mt-1 w-full rounded-lg bg-zinc-950 px-2.5 py-1.5 text-sm text-zinc-100 ring-1 ring-zinc-700 outline-none focus:ring-emerald-500';
+  return (
+    <form onSubmit={submit} className="mt-3 grid max-w-xl gap-2 rounded-xl bg-zinc-950/60 p-3 ring-1 ring-zinc-800 sm:grid-cols-3">
+      <label className="block text-xs text-zinc-400">
+        Current password
+        <input type="password" autoComplete="off" value={current} onChange={(e) => setCurrent(e.target.value)} className={field} />
+      </label>
+      <label className="block text-xs text-zinc-400">
+        New password (8+)
+        <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={field} />
+      </label>
+      <label className="block text-xs text-zinc-400">
+        New password again
+        <input type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} className={field} />
+      </label>
+      <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+        <Button type="submit" variant="primary" className="px-3 py-1.5 text-xs" disabled={busy || !current || !next}>
+          {busy ? 'Changing…' : 'Change password'}
+        </Button>
+        <Button type="button" variant="ghost" className="px-3 py-1.5 text-xs" onClick={onClose}>
+          {msg?.ok ? 'Done' : 'Cancel'}
+        </Button>
+        {msg && <span className={cx('text-xs', msg.ok ? 'text-emerald-300' : 'text-red-400')}>{msg.text}</span>}
+      </div>
+    </form>
   );
 }

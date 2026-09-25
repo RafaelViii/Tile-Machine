@@ -37,7 +37,7 @@ lights up three tiles: Hot Press, Designing and Curing.
 | Firmware | PlatformIO, `espressif32` platform 6.x → **Arduino-ESP32 core 2.0.x**. Use the core-2 APIs: ESP-NOW recv callback `(const uint8_t* mac, const uint8_t* data, int len)`, and LEDC `ledcSetup` / `ledcAttachPin` / `ledcWriteTone`. Don't mix in core-3 APIs. |
 | Web | React + Vite + TypeScript + Tailwind, hosted on Firebase Hosting. |
 | Firebase project | `tile-machine-92345`, RTDB region **asia-southeast1** (`https://tile-machine-92345-default-rtdb.asia-southeast1.firebasedatabase.app`). Analytics is not used. |
-| Auth | Firebase Auth email/password. Roles at `/roles/{uid}`: `"superadmin"` (owner, rafaelvberinguelajr@gmail.com: all + Users + Activity pages), `"operator"` (all machine pages, added/turned off from the Users page), `"hub"`. Every change is logged in `/audit` (docs/DATA_MODEL.md "People, presence and the Activity log"). |
+| Auth | Firebase Auth email/password. Roles at `/roles/{uid}`: `"superadmin"` (owner, rafaelvberinguelajr@gmail.com: all + Users + Activity pages), `"operator"` (all machine pages, added/turned off from the Users page; can't change passwords or add accounts: only the superadmin sets passwords, operators' on the Users page with their current one), `"hub"`. Every change is logged in `/audit` (docs/DATA_MODEL.md "People, presence and the Activity log"). |
 | Displays | SH1106 128x64 I2C (U8g2) on shredder, containing and hotpress. The hub has no display. |
 | Repo | GitHub `RafaelViii/Tile-Machine` (https://github.com/RafaelViii/Tile-Machine), default branch `main`. Currently **public**, so never commit secrets (see §6). |
 

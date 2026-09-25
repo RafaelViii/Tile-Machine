@@ -41,7 +41,8 @@ export type AuditAction =
   | 'USER_ADD'
   | 'USER_RENAME'
   | 'USER_ACCESS'
-  | 'PASSWORD_CHANGE';
+  | 'PASSWORD_CHANGE'
+  | 'USER_PASSWORD';
 
 export interface AuditChange {
   label: string;

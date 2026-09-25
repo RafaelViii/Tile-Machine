@@ -32,7 +32,7 @@ while the hub doesn't know the time.
     "<pushId>": {
       "ts": 1758600000000, "uid": "<uid>", "email": "ana@tile-machine.local",
       "action": "SIGN_IN" | "SIGN_OUT" | "CONFIG_SAVE" | "COMMAND" | "PRESET_CREATE" | "PRESET_UPDATE"
-              | "PRESET_RENAME" | "PRESET_DELETE" | "USER_ADD" | "USER_RENAME" | "USER_ACCESS" | "PASSWORD_CHANGE",
+              | "PRESET_RENAME" | "PRESET_DELETE" | "USER_ADD" | "USER_RENAME" | "USER_ACCESS" | "PASSWORD_CHANGE" | "USER_PASSWORD",
       "summary": "Saved Shredder settings (v25)",
       "module": "shredder",                                         // optional
       "changes": [ { "label": "3-way switch debounce", "from": "500 ms", "to": "400 ms" } ],  // CONFIG_SAVE
@@ -173,6 +173,11 @@ while the hub doesn't know the time.
   (= access off, locks open sessions at once); never their own role, never `hub`/`superadmin`.
 - New accounts are created from the Users page on a second, in-memory Firebase app instance, so the
   superadmin is never signed out or switched to the new account.
+- Passwords: only the superadmin changes them. Own password: account menu (and "Forgot password" to the
+  Gmail). Operator passwords: Users page → Password, with the operator's CURRENT password (the helper
+  instance signs in as the operator and calls updatePassword; without Cloud Functions/Blaze Firebase allows
+  nothing else). Logged as USER_PASSWORD. Operators have no password or account UI at all. Limit: Firebase
+  Auth itself lets any signed-in user change their own password through its API; only the UI prevents it.
 - Identity is enforced by the rules on every write: `config.editedBy/editedAt` = saver / server time,
   `commands.by` = sender, `presets.by` (create) / `updatedBy` (edit) = writer, `audit.uid/email/ts` =
   signed-in user / server time. Nobody can write under someone else's name.

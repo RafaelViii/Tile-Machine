@@ -100,6 +100,7 @@ export function LoginPage() {
         <button type="button" onClick={reset} className="mt-3 w-full text-center text-xs text-zinc-500 hover:text-zinc-300">
           Forgot password?
         </button>
+        <p className="mt-1 text-center text-xs text-zinc-500">Operators: ask your supervisor to reset it.</p>
       </form>
     </div>
   );

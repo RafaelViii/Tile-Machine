@@ -9,7 +9,7 @@ const ROLE_LABEL = { superadmin: 'Superadmin', operator: 'Operator', hub: 'Hub' 
 
 /** Round initial button: name + role, theme, change password, sign out. */
 export function AccountMenu() {
-  const { user, name, role, logout } = useAuth();
+  const { user, name, role, isSuper, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [pwMode, setPwMode] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -61,14 +61,17 @@ export function AccountMenu() {
                 <ThemeToggle />
               </div>
               <div className="mx-2.5 mb-1 h-px bg-zinc-800" />
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setPwMode(true)}
-                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/70"
-              >
-                Change password
-              </button>
+              {/* Only the superadmin manages passwords; operators' are set on the Users page. */}
+              {isSuper && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setPwMode(true)}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800/70"
+                >
+                  Change password
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"

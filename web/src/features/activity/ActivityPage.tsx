@@ -39,6 +39,7 @@ const ACTION: Record<AuditAction, { label: string; tone: 'green' | 'amber' | 're
   USER_RENAME: { label: 'Users', tone: 'zinc' },
   USER_ACCESS: { label: 'Users', tone: 'zinc' },
   PASSWORD_CHANGE: { label: 'Password', tone: 'zinc' },
+  USER_PASSWORD: { label: 'Password', tone: 'amber' },
 };
 
 function toRows(val: Record<string, AuditNode> | null): Row[] {

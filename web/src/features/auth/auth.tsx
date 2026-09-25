@@ -82,10 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const changePassword = useCallback(async (current: string, next: string) => {
     const u = auth.currentUser;
     if (!u?.email) throw new Error('Not signed in');
+    if (role !== 'superadmin') throw new Error('Only the superadmin can change passwords');
     await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, current));
     await updatePassword(u, next);
     await logAudit('PASSWORD_CHANGE', { summary: 'Changed own password' }).catch(() => {});
-  }, []);
+  }, [role]);
 
   const value: AuthState = {
     user,

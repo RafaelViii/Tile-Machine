@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { createUserWithEmailAndPassword, getAuth, inMemoryPersistence, initializeAuth, signOut } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  inMemoryPersistence,
+  initializeAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  updatePassword,
+} from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
 const env = import.meta.env;
@@ -40,4 +48,23 @@ export async function createAccountWithoutSwitching(email: string, password: str
   const uid = cred.user.uid;
   await signOut(helperAuth);
   return uid;
+}
+
+/**
+ * The superadmin sets an operator's password: signs in AS the operator on the in-memory helper instance
+ * (with the password the superadmin gave them), sets the new one and signs out again. The superadmin's own
+ * session is never touched. Firebase lets only a server change someone else's password without the
+ * current one, so the current password is needed (forgotten = add a new account, turn the old one off).
+ */
+export async function setAccountPasswordWithoutSwitching(email: string, current: string, next: string): Promise<void> {
+  if (!helperAuth) {
+    const helperApp = initializeApp(firebaseConfig, 'account-helper');
+    helperAuth = initializeAuth(helperApp, { persistence: inMemoryPersistence });
+  }
+  const cred = await signInWithEmailAndPassword(helperAuth, email, current);
+  try {
+    await updatePassword(cred.user, next);
+  } finally {
+    await signOut(helperAuth);
+  }
 }
