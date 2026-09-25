@@ -56,8 +56,8 @@ export function LoginPage() {
         <div className="mb-6 flex items-center gap-3">
           <LogoMark raised className="h-12 w-12" />
           <div>
-            <h1 className="text-xl font-bold">Tile Machine</h1>
-            <p className="text-xs text-zinc-400">Control dashboard</p>
+            <h1 className="text-xl font-bold">Tile Console</h1>
+            <p className="text-xs text-zinc-400">Control panel for the Tile Machine</p>
           </div>
         </div>
 

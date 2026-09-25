@@ -19,7 +19,7 @@ Devices:
   esp3  hotpress    Hot Press + Designing + Curing (relays only)
 ```
 
-The web dashboard shows all 5 processes. A process tile is **greyed out (unhighlighted)** until its
+The web dashboard (app name **Tile Console**, "control panel for the Tile Machine") shows all 5 processes. A process tile is **greyed out (unhighlighted)** until its
 ESP32 is paired and online. Then it lights up with a **connected** indicator. `hotpress` (esp3)
 lights up three tiles: Hot Press, Designing and Curing.
 

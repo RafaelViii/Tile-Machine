@@ -30,7 +30,7 @@ export function Layout() {
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <div className="flex items-center gap-2.5">
             <LogoMark raised className="h-9 w-9" />
-            <span className="hidden text-lg font-bold tracking-tight sm:inline">Tile Machine</span>
+            <span className="hidden text-lg font-bold tracking-tight sm:inline">Tile Console</span>
           </div>
 
           <div className="ml-auto flex items-center gap-3">
