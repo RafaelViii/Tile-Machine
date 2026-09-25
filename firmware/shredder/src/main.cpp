@@ -82,6 +82,9 @@ uint32_t identifyUntilMs = 0;
 const char* flashMsg = nullptr;
 uint32_t flashUntilMs = 0;
 uint32_t rebootAtMs = 0;
+uint32_t bootMs = 0;
+uint32_t interlockOffSinceMs = 0;  // when the switch started reading OFF during INTERLOCK (0 = not OFF)
+bool interlockShown = false;       // the "SET SWITCH TO OFF" screen/sound was actually needed
 
 bool isRunningState(ShredderState s) { return s == ShredderState::MANUAL_RUNNING || s == ShredderState::AUTO_RUNNING; }
 
@@ -173,10 +176,7 @@ void updateLogic() {
     const ShredderMode pos = modeSw.position();
     Serial.printf("[INPUT] switch -> %s%s\n", shredderModeName((uint8_t)pos), modeSw.wiringFault() ? " (WIRING FAULT: both contacts closed)" : "");
     if (state == ShredderState::INTERLOCK) {
-      if (pos == ShredderMode::OFF) {
-        enter(ShredderState::OFF, "switch seen at OFF, interlock released");
-        buzzer.play(TONES(sounds::CLICK));
-      }
+      // Handled below: the interlock only releases after OFF is held for INTERLOCK_OFF_HOLD_MS.
     } else {
       setRelay(false, "mode change", false);
       buzzer.play(TONES(sounds::MODE_CHANGE));
@@ -187,7 +187,29 @@ void updateLogic() {
 
   // 3. State machine.
   switch (state) {
-    case ShredderState::INTERLOCK:
+    case ShredderState::INTERLOCK: {
+      // Power-up interlock (safety invariant 3): unlock only after the switch has read OFF,
+      // without wiring fault, continuously for INTERLOCK_OFF_HOLD_MS.
+      const bool atOff = modeSw.position() == ShredderMode::OFF && !modeSw.wiringFault();
+      if (!atOff) {
+        interlockOffSinceMs = 0;
+        if (!interlockShown && now - bootMs >= INTERLOCK_OFF_HOLD_MS) {
+          interlockShown = true;
+          Serial.printf("[STATE] INTERLOCK: switch is at %s after power-up, turn it to OFF first\n",
+                        shredderModeName((uint8_t)modeSw.position()));
+          buzzer.play(TONES(sounds::INTERLOCK));
+        }
+      } else if (!interlockOffSinceMs) {
+        interlockOffSinceMs = now ? now : 1;
+      } else if (now - interlockOffSinceMs >= INTERLOCK_OFF_HOLD_MS) {
+        enter(ShredderState::OFF, interlockShown ? "switch held at OFF, interlock released" : "switch at OFF at power-up");
+        if (interlockShown) buzzer.play(TONES(sounds::CLICK));
+        else buzzer.play(TONES(sounds::BOOT));
+      }
+      if (startEdge) buzzer.play(TONES(sounds::INTERLOCK));  // "not now"
+      break;
+    }
+
     case ShredderState::OFF:
       if (startEdge) buzzer.play(TONES(sounds::INTERLOCK));  // "not now"
       break;
@@ -335,7 +357,7 @@ void publishStatus() {
   s.c.uptimeS = millis() / 1000;
   s.c.configVersion = cfg.configVersion;
   s.c.faults = (modeSw.wiringFault() ? 0x01 : 0) | (display.present() ? 0 : 0x02);
-  s.c.interlock = state == ShredderState::INTERLOCK;
+  s.c.interlock = state == ShredderState::INTERLOCK && interlockShown;
   s.mode = (uint8_t)modeSw.position();
   s.state = (uint8_t)state;
   s.relayOn = relayOn;
@@ -354,7 +376,8 @@ void updateDisplay() {
   if (flashMsg && (int32_t)(now - flashUntilMs) >= 0) flashMsg = nullptr;
 
   View v;
-  v.state = state;
+  // During the silent 0.5 s power-up check (switch already at OFF) show OFF, not the interlock screen.
+  v.state = (state == ShredderState::INTERLOCK && !interlockShown) ? ShredderState::OFF : state;
   v.mode = modeSw.position();
   v.relayOn = relayOn;
   v.irDetected = ir.detected();
@@ -401,16 +424,12 @@ void setup() {
     Serial.printf("[STATE] OLED layout self-test: %s\n", bad ? "OVERFLOW (see errors above)" : "all screens fit");
   }
 
-  // Power-up interlock (safety invariant 3): the switch must be seen at OFF first.
-  if (modeSw.position() != ShredderMode::OFF || modeSw.wiringFault()) {
-    state = ShredderState::INTERLOCK;
-    Serial.printf("[STATE] INTERLOCK: switch is at %s at power-up, turn it to OFF first\n",
-                  shredderModeName((uint8_t)modeSw.position()));
-    buzzer.play(TONES(sounds::INTERLOCK));
-  } else {
-    state = ShredderState::OFF;
-    buzzer.play(TONES(sounds::BOOT));
-  }
+  // Power-up interlock (safety invariant 3): ALWAYS start interlocked. updateLogic() releases it
+  // only after the switch reads OFF continuously for INTERLOCK_OFF_HOLD_MS.
+  state = ShredderState::INTERLOCK;
+  bootMs = millis();
+  Serial.printf("[STATE] power-up: switch reads %s, interlocked until it holds OFF for %lu ms\n",
+                shredderModeName((uint8_t)modeSw.position()), (unsigned long)INTERLOCK_OFF_HOLD_MS);
 
   hubLink.onConfig(onConfig);
   hubLink.onCommand(onCommand);

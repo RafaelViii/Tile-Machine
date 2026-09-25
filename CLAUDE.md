@@ -138,7 +138,7 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       router's 2.4 GHz radio dropped out (reason 201).
 - [x] Link test on the real Shredder board (COM8): paired with the hub 0.1 s after boot, got the RTC
       clock, and Firebase shows it online. Auto-pairing is proven end to end.
-- [~] Phase 3: Shredder firmware (firmware/shredder, fw 0.2.0) **running on the real board (COM8)**: OLED layout self-test passes, paired + clock from hub, web config v1 applied and saved to NVS. **Still to test by hand:** switch modes, START/STOP, IR, buzzer sounds, relay.
+- [x] Phase 3: Shredder firmware (firmware/shredder, fw 0.2.1) on the real board (COM8). Hand-tested: MANUAL check/confirm/run/STOP, AUTO countdown/run/stop-when-empty, E-STOP during countdown, CANCELLED, switch flip while running, web STOP + IDENTIFY + config, power-up interlock (fixed in 0.2.1: needs OFF held 1 s). **Pending: passive buzzer not wired yet, so sounds are untested.**
 - [ ] Phase 4: Hotpress firmware (2 relays, ON button, selector, OLED)
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.

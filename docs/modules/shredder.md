@@ -7,9 +7,8 @@ buzzer module, relay (motor), IR sensor.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> INTERLOCK : boot, switch not OFF
-  [*] --> OFF : boot, switch OFF
-  INTERLOCK --> OFF : switch seen at OFF
+  [*] --> INTERLOCK : every boot
+  INTERLOCK --> OFF : switch reads OFF continuously for 1 s
 
   OFF --> MANUAL_IDLE : switch → MANUAL
   OFF --> AUTO_WAITING : switch → AUTO
@@ -33,7 +32,7 @@ mode's first state (OFF / MANUAL_IDLE / AUTO_WAITING).
 
 | State | Relay | OLED (main line) |
 |---|---|---|
-| INTERLOCK | OFF | `SET SWITCH TO OFF` |
+| INTERLOCK | OFF | `SET SWITCH TO OFF` (only if the switch is not at OFF after 1 s; a normal boot shows OFF and unlocks silently) |
 | OFF | OFF | `OFF` |
 | MANUAL_IDLE | OFF | `MANUAL · Press START to check` |
 | MANUAL_CONFIRM | OFF | `LOADED` or `EMPTY` (large) + `START=Run  STOP=Cancel` + timeout bar |
@@ -74,3 +73,14 @@ Top status bar on every screen: mode, IR ● / ○, and a link icon (hub connect
 | IDENTIFY (remote) | alternating 1 kHz / 2 kHz for 3 s |
 
 Uses the legacy non-blocking **queued pattern player**, extended with a frequency per step.
+
+## Power-up interlock (fw 0.2.1)
+
+Every boot starts in `INTERLOCK`. It unlocks only after the switch has read **OFF continuously for
+1 s** (`INTERLOCK_OFF_HOLD_MS`). A single first reading is never trusted: in the hardware test the
+switch read OFF for an instant at power-up while it was on AUTO, and fw 0.2.0 skipped the interlock
+and went straight to AUTO. Verified on the board: switch at OFF → silent unlock after 1 s; switch at
+AUTO → "SET SWITCH TO OFF" until turned to OFF.
+
+Note: this board is also powered from another source (relay or sensor wiring). Unplugging USB alone
+may not restart it. Use the EN/RST button for a real restart.
