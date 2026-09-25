@@ -5,6 +5,63 @@ export const MODULE_IDS: ModuleId[] = ['shredder', 'containing', 'hotpress'];
 
 export type Selector = 'NEUTRAL' | 'LEFT' | 'RIGHT';
 
+// ---------- /roles/{uid}, /users/{uid}, /presence/{uid}, /audit/{pushId} ----------
+/** superadmin = owner (Users + Activity pages), operator = runs the machine, hub = the hub ESP32. */
+export type Role = 'superadmin' | 'operator' | 'hub';
+
+export interface UserNode {
+  email: string;
+  name: string;
+  createdAt: number;
+  createdBy?: string;
+}
+
+export interface PresenceConnection {
+  device: string;
+  page: string;
+  since: number;
+}
+
+export interface PresenceNode {
+  /** One entry per open tab/device; removed by the server when that tab disconnects. */
+  connections?: Record<string, PresenceConnection>;
+  /** Last activity (refreshed every minute while online, and on disconnect). */
+  lastSeen?: number;
+}
+
+export type AuditAction =
+  | 'SIGN_IN'
+  | 'SIGN_OUT'
+  | 'CONFIG_SAVE'
+  | 'COMMAND'
+  | 'PRESET_CREATE'
+  | 'PRESET_UPDATE'
+  | 'PRESET_RENAME'
+  | 'PRESET_DELETE'
+  | 'USER_ADD'
+  | 'USER_RENAME'
+  | 'USER_ACCESS'
+  | 'PASSWORD_CHANGE';
+
+export interface AuditChange {
+  label: string;
+  from: string;
+  to: string;
+}
+
+export interface AuditNode {
+  ts: number;
+  uid: string;
+  email: string;
+  action: AuditAction;
+  summary: string;
+  module?: string;
+  changes?: AuditChange[];
+  /** COMMAND: the command's push id, and its final status once known. */
+  cmdId?: string;
+  result?: 'done' | 'failed' | 'expired';
+}
+
 // ---------- /hub ----------
 export interface HubNode {
   online?: boolean;
@@ -86,7 +143,13 @@ export interface HotpressState extends StateCommon {
   stopLatched: boolean;
 }
 
-export interface ShredderConfig {
+/** Written with every config save; the rules require editedBy = the saver and editedAt = server time. */
+export interface EditStamp {
+  editedBy?: string;
+  editedAt?: number;
+}
+
+export interface ShredderConfig extends EditStamp {
   version: number;
   autoStartDelayMs: number;
   autoEmptyStopDelayMs: number;
@@ -118,14 +181,14 @@ export interface ServoConfig {
   runUs: number;
 }
 
-export interface ContainingConfig {
+export interface ContainingConfig extends EditStamp {
   version: number;
   raw: RawContainerConfig[]; // 0 Raw HDPE, 1 Raw PP
   mixed: MixedContainerConfig[]; // 0 Mixed HDPE, 1 Mixed PP
   servo: ServoConfig[]; // 8 entries, PCA9685 ch 0..7
 }
 
-export interface HotpressConfig {
+export interface HotpressConfig extends EditStamp {
   version: number;
   autoModeBehaviour: number;
   buttonDebounceMs: number; // ON (latching) button must be stable this long
@@ -173,6 +236,7 @@ export interface PresetNode {
   createdAt: number;
   updatedAt: number;
   by: string;
+  updatedBy?: string;
   shredder?: Omit<ShredderConfig, 'version'>;
   containing?: Omit<ContainingConfig, 'version'>;
   hotpress?: Omit<HotpressConfig, 'version'>;

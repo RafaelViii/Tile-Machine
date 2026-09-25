@@ -1,11 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { ref, runTransaction } from 'firebase/database';
-import { db } from '../lib/firebase';
+import { get, ref, serverTimestamp, update as dbUpdate } from 'firebase/database';
+import { auth, db } from '../lib/firebase';
+import { auditEntry } from './audit';
 import { normalizeConfig } from './configDefaults';
+import { diffConfig } from './configDiff';
 import { useMachine } from './machine';
 import { MODULE_IDS, type ConfigByModule, type ModuleId } from './types/rtdb';
 
 type Configs = { [M in ModuleId]: ConfigByModule[M] };
+
+const MODULE_LABEL: Record<ModuleId, string> = { shredder: 'Shredder', containing: 'Containing', hotpress: 'Hot Press' };
 type Drafts = { [M in ModuleId]?: ConfigByModule[M] };
 
 /** Compare two configs by value, ignoring `version` and key order. */
@@ -45,8 +49,9 @@ const Ctx = createContext<DraftsCtx | null>(null);
 
 /**
  * Unsaved config edits for all modules, kept while switching pages, so a whole-machine preset
- * can fill every form at once. Saving bumps each module's `version` in a transaction
- * (the RTDB rules require a strictly increasing version).
+ * can fill every form at once. Saving writes every changed module plus one Activity-log entry each in
+ * ONE multi-path update: the rules require a strictly increasing `version` and editedBy/editedAt =
+ * the saver/server time, so a concurrent save from someone else is rejected (then retried once).
  */
 export function ConfigDraftsProvider({ children }: { children: ReactNode }) {
   const { modules } = useMachine();
@@ -107,25 +112,39 @@ export function ConfigDraftsProvider({ children }: { children: ReactNode }) {
   const saveAll = useCallback(async () => {
     setSaving(true);
     setError(null);
-    const done: ModuleId[] = [];
-    try {
-      for (const id of dirtyIds) {
+    const ids = [...dirtyIds];
+    const writeOnce = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error('Not signed in');
+      const upd: Record<string, unknown> = {};
+      for (const id of ids) {
+        const cur = (await get(ref(db, `modules/${id}/config`))).val() as Record<string, unknown> | null;
+        const version = (typeof cur?.version === 'number' ? cur.version : 0) + 1;
         const draft = drafts[id]!;
-        await runTransaction(ref(db, `modules/${id}/config`), (cur) => {
-          const prev = (cur as { version?: number } | null)?.version ?? 0;
-          return { ...draft, version: prev + 1 };
+        upd[`modules/${id}/config`] = { ...draft, version, editedBy: uid, editedAt: serverTimestamp() };
+        const [path, entry] = auditEntry('CONFIG_SAVE', {
+          module: id,
+          summary: `Saved ${MODULE_LABEL[id]} settings (v${version})`,
+          changes: diffConfig(id, normalizeConfig(id, cur), draft),
         });
-        done.push(id);
+        upd[path] = entry;
       }
+      await dbUpdate(ref(db), upd);
+    };
+    try {
+      try {
+        await writeOnce();
+      } catch {
+        await writeOnce(); // someone else saved in between: re-read the versions once
+      }
+      setDrafts((all) => {
+        const next = { ...all };
+        for (const id of ids) delete next[id];
+        return next;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      // Drop only what reached the database, so a failed module keeps its edits.
-      setDrafts((all) => {
-        const next = { ...all };
-        for (const id of done) delete next[id];
-        return next;
-      });
       setSaving(false);
     }
   }, [dirtyIds, drafts]);

@@ -4,6 +4,8 @@ import { Navigate } from 'react-router';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { Button, Spinner } from '../../components/ui';
+import { logAudit } from '../../shared/audit';
+import { deviceName } from '../../shared/presence';
 import { useAuth } from './auth';
 
 function friendly(code: string): string {
@@ -30,6 +32,8 @@ export function LoginPage() {
     setMsg(null);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+      // Activity log (refused by the rules for accounts without staff access: nothing to log then).
+      await logAudit('SIGN_IN', { summary: `Signed in on ${deviceName()}` }).catch(() => {});
     } catch (err) {
       setMsg({ tone: 'error', text: friendly(err instanceof Error ? err.message : String(err)) });
     } finally {

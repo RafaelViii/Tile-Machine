@@ -476,13 +476,24 @@ void dispatchStreamEvent() {
   // keep-alive: nothing to do
 }
 
+// Moves the line into `to` without copying it. A "data:" line holds the whole /commands tree when the
+// stream (re)connects, several KB: copying it needed a second big heap block, and when that allocation
+// failed (fragmented heap after an offline period) Arduino's String::move read address 0 and the hub
+// crashed (fw 0.3.0, LoadProhibited in streamTask). remove() works in place, the move steals the buffer.
+void takeLine(String& to, unsigned prefix) {
+  streamLine.remove(0, prefix);
+  streamLine.trim();
+  to = String();  // free the previous value first
+  to = std::move(streamLine);
+  streamLine = String();
+  streamLine.reserve(512);
+}
+
 void processStreamLine() {
   if (streamLine.startsWith("event:")) {
-    streamEvent = streamLine.substring(6);
-    streamEvent.trim();
+    takeLine(streamEvent, 6);
   } else if (streamLine.startsWith("data:")) {
-    streamData = streamLine.substring(5);
-    streamData.trim();
+    takeLine(streamData, 5);
   } else if (streamLine.length() == 0 && streamEvent.length()) {
     dispatchStreamEvent();
     streamEvent = "";
@@ -568,12 +579,13 @@ void streamTask(void*) {
           processStreamLine();
           streamLine = "";
         } else if (c != '\r') {
-          if (streamLine.length() >= 16384) {
-            Serial.println("[ERROR] command stream line too long, reconnecting");
+          // concat() fails (returns false) when the heap can't grow the line: reconnect instead of crashing.
+          if (streamLine.length() >= 16384 || !streamLine.concat(c)) {
+            Serial.printf("[ERROR] command stream line too long or out of memory (heap %u, largest block %u), reconnecting\n",
+                          ESP.getFreeHeap(), ESP.getMaxAllocHeap());
             streaming = false;
             break;
           }
-          streamLine += c;
         }
       }
     }

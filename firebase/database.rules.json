@@ -4,19 +4,50 @@
     ".write": false,
 
     "roles": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'superadmin'",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": false
+        ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'superadmin' && $uid !== auth.uid && (!data.exists() || data.val() === 'operator') && (!newData.exists() || newData.val() === 'operator')"
+      }
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'superadmin'",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'superadmin'",
+        ".validate": "newData.hasChildren(['email', 'name', 'createdAt'])",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" }
+      }
+    },
+
+    "presence": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'superadmin'",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator')"
+      }
+    },
+
+    "audit": {
+      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'superadmin'",
+      ".indexOn": ["ts", "uid"],
+      "$id": {
+        ".write": "auth != null && ((!data.exists() && newData.exists() && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator')) || (!newData.exists() && root.child('roles/' + auth.uid).val() === 'superadmin'))",
+        ".validate": "newData.hasChildren(['ts', 'uid', 'email', 'action']) && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email && (data.exists() || newData.child('ts').val() === now)",
+        "result": {
+          ".write": "auth != null && data.parent().child('uid').val() === auth.uid && !data.exists()",
+          ".validate": "newData.isString() && newData.val().matches(/^(done|failed|expired)$/)"
+        }
       }
     },
 
     "hub": {
-      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator')",
       ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
     },
 
     "modules": {
-      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
       "$moduleId": {
         "info": {
           ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
@@ -31,18 +62,18 @@
           ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'"
         },
         "config": {
-          ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'admin' && $moduleId.matches(/^(shredder|containing|hotpress)$/)",
-          ".validate": "newData.child('version').isNumber() && (!data.exists() || newData.child('version').val() > data.child('version').val())"
+          ".write": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator') && $moduleId.matches(/^(shredder|containing|hotpress)$/)",
+          ".validate": "newData.child('version').isNumber() && (!data.exists() || newData.child('version').val() > data.child('version').val()) && newData.child('editedBy').val() === auth.uid && newData.child('editedAt').val() === now"
         }
       }
     },
 
     "commands": {
-      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
       "$moduleId": {
         "$cmdId": {
-          ".write": "auth != null && ((root.child('roles/' + auth.uid).val() === 'admin' && !data.exists() && newData.exists() && $moduleId.matches(/^(shredder|containing|hotpress|all)$/)) || root.child('roles/' + auth.uid).val() === 'hub')",
-          ".validate": "newData.hasChildren(['type', 'createdAt', 'status']) && ($moduleId !== 'all' || newData.child('type').val() === 'STOP')",
+          ".write": "auth != null && (((root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator') && !data.exists() && newData.exists() && $moduleId.matches(/^(shredder|containing|hotpress|all)$/)) || root.child('roles/' + auth.uid).val() === 'hub')",
+          ".validate": "newData.hasChildren(['type', 'createdAt', 'status']) && ($moduleId !== 'all' || newData.child('type').val() === 'STOP') && (data.exists() ? newData.child('by').val() === data.child('by').val() : newData.child('by').val() === auth.uid)",
           "type": {
             ".validate": "newData.isString() && newData.val().matches(/^(STOP|IDENTIFY|TARE|CALIBRATE|REBOOT)$/)"
           },
@@ -57,10 +88,10 @@
     },
 
     "presets": {
-      ".read": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator')",
       "$presetId": {
-        ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'admin'",
-        ".validate": "newData.hasChildren(['name', 'createdAt', 'updatedAt'])",
+        ".write": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator')",
+        ".validate": "newData.hasChildren(['name', 'createdAt', 'updatedAt']) && (data.exists() ? newData.child('updatedBy').val() === auth.uid : newData.child('by').val() === auth.uid)",
         "name": {
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
         }
@@ -68,7 +99,7 @@
     },
 
     "events": {
-      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'admin' || root.child('roles/' + auth.uid).val() === 'hub')",
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
       ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'",
       ".indexOn": ["ts"]
     }

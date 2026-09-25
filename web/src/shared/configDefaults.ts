@@ -66,7 +66,8 @@ export const DEFAULT_HOTPRESS: HotpressConfig = {
 
 /** Fill anything missing from a stored config with defaults (arrays padded to full length). */
 export function normalizeConfig<M extends ModuleId>(id: M, stored: unknown): ConfigByModule[M] {
-  const s = (stored ?? {}) as Record<string, unknown>;
+  // editedBy / editedAt describe the last save, not a setting: keep them out of forms, presets and diffs.
+  const { editedBy: _by, editedAt: _at, ...s } = (stored ?? {}) as Record<string, unknown>;
   if (id === 'shredder') {
     return { ...DEFAULT_SHREDDER, ...s } as ConfigByModule[M];
   }

@@ -1,22 +1,45 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
+import { useAuth } from '../features/auth/auth';
 import { useMachine } from '../shared/machine';
+import { endPresence, setPresencePage, startPresence } from '../shared/presence';
 import { AccountMenu } from './AccountMenu';
 import { CommandButton } from './CommandButton';
 import { HubIcon, LogoMark } from './icons';
 import { cx } from './ui';
 
-const links = [
+const links: { to: string; label: string; end?: boolean }[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/shredder', label: 'Shredder' },
   { to: '/containing', label: 'Containing' },
   { to: '/hotpress', label: 'Hot Press' },
   { to: '/events', label: 'Events' },
 ];
+const superLinks: typeof links = [
+  { to: '/users', label: 'Users' },
+  { to: '/activity', label: 'Activity' },
+];
+
+/** Page name shown to the superadmin in "online now". */
+export function pageName(pathname: string): string {
+  return [...links, ...superLinks].find((l) => (l.to === '/' ? pathname === '/' : pathname.startsWith(l.to)))?.label ?? 'Dashboard';
+}
 
 export function Layout() {
   const { hubOnline, loading } = useMachine();
   const { pathname } = useLocation();
+  const { user, isSuper } = useAuth();
+  const uid = user?.uid;
+  const navLinks = isSuper ? [...links, ...superLinks] : links;
+
+  // Online presence (seen by the superadmin). The app is rebuilt per account (App.tsx), so this
+  // effect ends the previous account's presence before the next one starts.
+  useEffect(() => {
+    if (!uid) return;
+    startPresence(uid, pageName(window.location.pathname));
+    return () => void endPresence();
+  }, [uid]);
+  useEffect(() => setPresencePage(pageName(pathname)), [pathname]);
 
   const nav = useRef<HTMLElement>(null);
   const [more, setMore] = useState(false);
@@ -73,7 +96,7 @@ export function Layout() {
               more && '[mask-image:linear-gradient(to_right,black_80%,transparent)]',
             )}
           >
-            {links.map((l) => (
+            {navLinks.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}

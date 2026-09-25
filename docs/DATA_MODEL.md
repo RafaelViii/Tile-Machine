@@ -13,8 +13,31 @@ while the hub doesn't know the time.
 
 ```jsonc
 {
-  "roles": {                       // set manually in Firebase console
-    "<uid>": "admin" | "hub"
+  "roles": {                       // superadmin + hub set by hand (console/CLI); operators by the superadmin (Users page)
+    "<uid>": "superadmin" | "operator" | "hub"
+  },
+
+  "users": {                       // superadmin (Users page); each person can read their own
+    "<uid>": { "email": "ana@tile-machine.local", "name": "Ana", "createdAt": 1758600000000, "createdBy": "<uid>" }
+  },
+
+  "presence": {                    // each person writes their own; only the superadmin reads
+    "<uid>": {
+      "connections": { "<pushId>": { "device": "Edge on Windows", "page": "Shredder", "since": 1758600000000 } },
+      "lastSeen": 1758600000000    // every 60 s while online + on disconnect
+    }
+  },
+
+  "audit": {                       // Activity log: append-only for staff, read/delete by the superadmin only
+    "<pushId>": {
+      "ts": 1758600000000, "uid": "<uid>", "email": "ana@tile-machine.local",
+      "action": "SIGN_IN" | "SIGN_OUT" | "CONFIG_SAVE" | "COMMAND" | "PRESET_CREATE" | "PRESET_UPDATE"
+              | "PRESET_RENAME" | "PRESET_DELETE" | "USER_ADD" | "USER_RENAME" | "USER_ACCESS" | "PASSWORD_CHANGE",
+      "summary": "Saved Shredder settings (v25)",
+      "module": "shredder",                                         // optional
+      "changes": [ { "label": "3-way switch debounce", "from": "500 ms", "to": "400 ms" } ],  // CONFIG_SAVE
+      "cmdId": "<pushId>", "result": "done" | "failed" | "expired"  // COMMAND
+    }
   },
 
   "hub": {                         // written by hub
@@ -44,7 +67,7 @@ while the hub doesn't know the time.
         "lastSeen": 1758600000000  // refreshed every 10 s while online, and on transitions
       },
       "state": { /* module-specific, see below */ },   // hub, ≤ 2 writes/s
-      "config": { "version": 7, /* module-specific */ },   // web (admin)
+      "config": { "version": 7, "editedBy": "<uid>", "editedAt": 1758600000000, /* module-specific */ },   // web
       "configApplied": {           // hub
         "version": 7,
         "result": "ok" | "queued" | "rejected",
@@ -60,7 +83,7 @@ while the hub doesn't know the time.
         "target": 0,               // optional unit/container index, omit = all units
         "arg": 1000,               // optional (CALIBRATE: known grams)
         "createdAt": 1758600000000,
-        "by": "<uid>",
+        "by": "<uid>",             // rules: must be the sender
         "status": "pending" | "sent" | "done" | "failed" | "expired",
         "updatedAt": 1758600000000
       }
@@ -136,6 +159,24 @@ while the hub doesn't know the time.
 // hotpress
 { "version": 1, "autoModeBehaviour": 0, "buttonDebounceMs": 200, "selectorDebounceMs": 150 }
 ```
+
+## People, presence and the Activity log (web only, the hub never reads these)
+
+- Roles: `superadmin` (owner: everything + Users + Activity pages), `operator` (everything on the machine
+  pages), `hub`. The rules let the superadmin set other accounts to `operator` or remove the role
+  (= access off, locks open sessions at once); never their own role, never `hub`/`superadmin`.
+- New accounts are created from the Users page on a second, in-memory Firebase app instance, so the
+  superadmin is never signed out or switched to the new account.
+- Identity is enforced by the rules on every write: `config.editedBy/editedAt` = saver / server time,
+  `commands.by` = sender, `presets.by` (create) / `updatedBy` (edit) = writer, `audit.uid/email/ts` =
+  signed-in user / server time. Nobody can write under someone else's name.
+- Every change is written in ONE multi-path update together with its `audit` entry. Operators can't
+  read, edit or delete the log. The owner of a COMMAND entry may add its final `result` once.
+  Limit: the website writes the log, so a person scripting raw database calls could skip the entry
+  (not the identity stamps). Server-enforced logging would need Cloud Functions (Blaze plan).
+- Retention: the Activity page deletes entries older than 90 days when the superadmin opens it.
+- The whole signed-in app is rebuilt per account (keyed by uid): no unsaved edits, picked preset or
+  page state carries over when a different person signs in on the same browser.
 
 ## Presets (web only)
 

@@ -37,7 +37,7 @@ lights up three tiles: Hot Press, Designing and Curing.
 | Firmware | PlatformIO, `espressif32` platform 6.x → **Arduino-ESP32 core 2.0.x**. Use the core-2 APIs: ESP-NOW recv callback `(const uint8_t* mac, const uint8_t* data, int len)`, and LEDC `ledcSetup` / `ledcAttachPin` / `ledcWriteTone`. Don't mix in core-3 APIs. |
 | Web | React + Vite + TypeScript + Tailwind, hosted on Firebase Hosting. |
 | Firebase project | `tile-machine-92345`, RTDB region **asia-southeast1** (`https://tile-machine-92345-default-rtdb.asia-southeast1.firebasedatabase.app`). Analytics is not used. |
-| Auth | Firebase Auth email/password. The web admin and the hub each have an account. Roles live at `/roles/{uid}` = `"admin"` or `"hub"` and are set by hand in the console. |
+| Auth | Firebase Auth email/password. Roles at `/roles/{uid}`: `"superadmin"` (owner, rafaelvberinguelajr@gmail.com: all + Users + Activity pages), `"operator"` (all machine pages, added/turned off from the Users page), `"hub"`. Every change is logged in `/audit` (docs/DATA_MODEL.md "People, presence and the Activity log"). |
 | Displays | SH1106 128x64 I2C (U8g2) on shredder, containing and hotpress. The hub has no display. |
 | Repo | GitHub `RafaelViii/Tile-Machine` (https://github.com/RafaelViii/Tile-Machine), default branch `main`. Currently **public**, so never commit secrets (see §6). |
 
@@ -147,6 +147,18 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       clock, and Firebase shows it online. Auto-pairing is proven end to end.
 - [x] Phase 3: Shredder firmware (firmware/shredder, fw 0.2.1) on the real board (COM8). Hand-tested: MANUAL check/confirm/run/STOP, AUTO countdown/run/stop-when-empty, E-STOP during countdown, CANCELLED, switch flip while running, web STOP + IDENTIFY + config, power-up interlock (fixed in 0.2.1: needs OFF held 1 s). **Pending: passive buzzer not wired yet, so sounds are untested.** fw 0.2.4: 3-way switch (default 250 ms) and START/STOP (default 50 ms) debounce adjustable from the web (software workaround until the RC filters are fitted).
 - [~] Phase 4: Hotpress firmware (firmware/hotpress, fw 0.1.4 on the board, integrating ON-button filter + noise monitor (fault bit 2), debounce adjustable from the web, default 200/150 ms; ON button chatters when pressed, RC filter recommended) on the real board (COM9, auto-upload works, no BOOT needed): 2x SSR-25-DA (HIGH = ON), per-output power-up interlock (OFF/middle held 1 s), web STOP latch per output, OLED + self-test, paired with hub. **Hand test pending.**
+- [~] **Accounts (2026-09-25, IN PROGRESS, resume here):** superadmin (Rafael) + operators, Users page (add
+      operator / rename / access on-off / online now), Activity page (sign-in/out, settings old → new,
+      commands + result, presets, user changes; 90 days), presence per tab, change-own-password in the account
+      menu. Rules + site deployed. Account `operator@tile-machine.local` created (password given to Rafael, not
+      in git). Account switching fixed: the signed-in app is keyed by uid (App.tsx), new accounts are created on
+      a second in-memory Firebase app (lib/firebase.ts). E2E test passed 26/26 on the live site.
+      **Hub crash found + fixed, NOT yet re-verified:** after an offline period the hub crashed (LoadProhibited
+      in streamTask) when the hotspot closed and the /commands stream reconnected: copying the big first
+      "data:" line failed on a fragmented heap. Fix in cloud.cpp (takeLine: move, no copy; concat() failure =
+      reconnect). Flashed on COM7 (label still fw 0.3.0; bump to 0.3.1). **Next:** re-run the offline test
+      (temporarily set PORTAL_OFFLINE_AFTER_MS = 8000, join TileHub from the PC WiFi, POST /api/connect with a
+      missing SSID, leave, watch the close ~3 min later for "Guru Meditation"), then set it back to 30000.
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):
