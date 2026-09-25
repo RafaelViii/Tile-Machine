@@ -50,6 +50,8 @@ while the hub doesn't know the time.
     "wifiChannel": 6,
     "wifiSsid": "speedxfiber_2.4Ghz",   // network the hub is on (fw 0.3.0+)
     "portal": false,                    // setup hotspot open (fw 0.3.0+), refreshed every 10 s
+    "diag": { "heap": 115000, "minHeap": 60000, "block": 51000, "uptimeS": 3600,
+              "loopMaxMs": 12, "logSuppressed": 0 },   // health every 10 s (fw 0.3.2+)
     "protocolVersion": 1,
     "timeSource": "ntp" | "rtc" | "none",        // where the hub clock currently comes from
     "rtc": "ok" | "lost-power" | "missing"        // DS3231 state
@@ -101,6 +103,10 @@ while the hub doesn't know the time.
       "hotpress":   { /* ... */ }
     }
   },
+
+  "hubLog": {                       // hub's own messages (fw 0.3.2+): errors + important lines, 7 days
+    "h<bootTag>_000001": { "ts": 1758600000000, "lvl": "E" | "I" | "C", "msg": "Firebase sign-in failed (HTTP -1)" }
+  },                               // "C" = crash report written after a crash restart
 
   "events": {
     "<pushId>": {

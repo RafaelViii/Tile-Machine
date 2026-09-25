@@ -75,11 +75,29 @@ export interface HubNode {
   wifiSsid?: string;
   /** Setup hotspot "TileHub-XXXX" open right now (hub fw >= 0.3.0). */
   portal?: boolean;
+  /** Health, refreshed every 10 s (hub fw >= 0.3.2). */
+  diag?: HubDiag;
   protocolVersion?: number;
   /** Where the hub's clock comes from right now. */
   timeSource?: 'ntp' | 'rtc' | 'none';
   /** DS3231 state: ok, lost-power (battery/time lost, waiting for internet time) or missing. */
   rtc?: 'ok' | 'lost-power' | 'missing';
+}
+
+export interface HubDiag {
+  heap: number; // free bytes now
+  minHeap: number; // lowest free since boot
+  block: number; // largest free block (TLS needs a big one)
+  uptimeS: number;
+  loopMaxMs: number; // longest main-loop pass in the last 10 s
+  logSuppressed: number; // log lines not sent (rate limit)
+}
+
+// ---------- /hubLog/{key} ----------
+export interface HubLogNode {
+  ts: number;
+  lvl: 'E' | 'I' | 'C'; // error, info, crash report
+  msg: string;
 }
 
 // ---------- /modules/{id} ----------

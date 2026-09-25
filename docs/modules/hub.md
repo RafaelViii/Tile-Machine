@@ -117,6 +117,26 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   = all good and setup hotspot open.
 - Reported in `/hub`: `wifiSsid` (network) and `portal` (hotspot open), shown on the Dashboard.
 
+## Remote diagnostics (fw 0.3.2, src/diag.cpp)
+
+So the hub can run for days without a PC on its USB port. Shown in the Dashboard → Devices → Main hub.
+
+- `/hub/diag` every 10 s: free heap, lowest since boot, largest free block (a new TLS connection
+  needs ~40 KB in one piece), uptime, slowest `loop()` pass in the last 10 s, log lines not sent.
+- `/hubLog` (7 days): every `[ERROR]` line plus important `[NET]`/`[STATE]` lines (WiFi, cloud,
+  hotspot, reset reason, watchdog). Log lines go through `diag::printf` (prints to Serial too), wait in a
+  small ring buffer and are handed to the cloud from `loop()`, so logging never takes the cloud mutex
+  (many error lines are printed while cloud.cpp holds it). Rate limit: the same message (digits ignored)
+  at most once a minute, at most 30 lines per 10 min; skipped lines are counted and reported.
+  The 10 s status report stays Serial-only.
+- **Crash report:** each task marks what it is doing (`diag::phase`); the marks, the last log line and
+  the memory figures live in RTC RAM, which survives a crash restart. After a panic or watchdog reset
+  the hub writes a `C` entry: uptime, what loop/cloud/stream were doing, memory, last message.
+- Lesson (bug found while testing): ArduinoJson 7 stores `const char[]` arrays by POINTER (it takes
+  them for string literals). Always `String(...)` local buffers before putting them in a JsonDocument;
+  a dangling one made Firebase refuse the whole batch (HTTP 400). A refused batch is now printed.
+- Test build: `-DHUB_TEST_CRASH_AFTER_MS=60000` crashes on purpose to check the crash report.
+
 ## Registry (NVS)
 
 `moduleId → {mac, lastConfigVersionAcked}`. A HELLO from a new MAC for a known moduleId replaces

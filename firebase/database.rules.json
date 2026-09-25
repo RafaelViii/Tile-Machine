@@ -98,6 +98,12 @@
       }
     },
 
+    "hubLog": {
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
+      ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'",
+      ".indexOn": ["ts"]
+    },
+
     "events": {
       ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
       ".write": "auth != null && root.child('roles/' + auth.uid).val() === 'hub'",

@@ -1,4 +1,5 @@
 #include "wifimgr.h"
+#include "diag.h"
 
 #include <ArduinoJson.h>
 #include <DNSServer.h>
@@ -157,7 +158,7 @@ void handleStatus() {
   JsonDocument d;
   char fw[12];
   tile::fwDecode(HUB_FW, fw, sizeof(fw));
-  d["fw"] = fw;
+  d["fw"] = String(fw);
   d["hotspot"] = apSsid;
   d["reason"] = reasonName(reason);
   if (reason != PortalReason::Offline || WiFi.status() == WL_CONNECTED) {
@@ -262,7 +263,7 @@ void handleConnect() {
   trialState = TrialState::Trying;
   trialSsid = ssid;
   lastReason = 0;
-  Serial.printf("[NET] setup page: trying '%s'\n", ssid.c_str());
+  diag::printf("[NET] setup page: trying '%s'\n", ssid.c_str());
   startAttempt(ssid, pass, false);
   JsonDocument d;
   d["ok"] = true;
@@ -274,7 +275,7 @@ void handleSave() {
   String ssid, pass;
   if (!readCreds(ssid, pass)) return badRequest("Network name 1-32 characters; password empty or 8-63 characters");
   remember(ssid, pass, false);
-  Serial.printf("[NET] setup page: saved '%s' (not tested)\n", ssid.c_str());
+  diag::printf("[NET] setup page: saved '%s' (not tested)\n", ssid.c_str());
   JsonDocument d;
   d["ok"] = true;
   sendJson(d);
@@ -284,7 +285,7 @@ void handleForget() {
   touchActivity();
   const String ssid = server.arg("ssid");
   forget(ssid);
-  Serial.printf("[NET] setup page: forgot '%s'\n", ssid.c_str());
+  diag::printf("[NET] setup page: forgot '%s'\n", ssid.c_str());
   JsonDocument d;
   d["ok"] = true;
   sendJson(d);
@@ -310,7 +311,7 @@ void startAp() {
   dns.start(53, "*", WiFi.softAPIP());
   server.begin();
   apOn = true;
-  Serial.printf("[NET] setup hotspot '%s' open on channel %u (http://%s)\n", apSsid.c_str(), ch,
+  diag::printf("[NET] setup hotspot '%s' open on channel %u (http://%s)\n", apSsid.c_str(), ch,
                 WiFi.softAPIP().toString().c_str());
 }
 
@@ -321,20 +322,20 @@ void stopAp() {
   apOn = false;
   reason = PortalReason::None;
   if (WiFi.scanComplete() >= 0) WiFi.scanDelete();
-  Serial.println("[NET] setup hotspot closed");
+  diag::printf("[NET] setup hotspot closed\n");
 }
 
 void serviceWifi(uint32_t now) {
   if (WiFi.status() == WL_CONNECTED) {
     if (downSinceMs) {
-      Serial.printf("[NET] WiFi '%s' up after %lu s\n", WiFi.SSID().c_str(), (unsigned long)((now - downSinceMs) / 1000));
+      diag::printf("[NET] WiFi '%s' up after %lu s\n", WiFi.SSID().c_str(), (unsigned long)((now - downSinceMs) / 1000));
       downSinceMs = 0;
     }
     if (trial.active && trial.dropped && WiFi.SSID() == trial.ssid) {
       remember(trial.ssid, trial.pass, true);
       trial.active = false;
       trialState = TrialState::Ok;
-      Serial.printf("[NET] setup page: '%s' works, saved as first choice\n", trial.ssid.c_str());
+      diag::printf("[NET] setup page: '%s' works, saved as first choice\n", trial.ssid.c_str());
     } else if (!trial.active) {
       const int at = findNet(WiFi.SSID());
       if (at > 0) remember(nets[at].ssid, nets[at].pass, true);  // the one that works goes first
@@ -352,7 +353,7 @@ void serviceWifi(uint32_t now) {
     trial.active = false;
     trialState = TrialState::Failed;
     trialReason = lastReason;
-    Serial.printf("[NET] setup page: '%s' failed (%s), back to saved networks\n", trial.ssid.c_str(),
+    diag::printf("[NET] setup page: '%s' failed (%s), back to saved networks\n", trial.ssid.c_str(),
                   reasonText(trialReason));
     nextTryMs = now;
   }
@@ -363,7 +364,7 @@ void serviceWifi(uint32_t now) {
   // channels would move the hotspot and drop the phone.
   const bool pinned = apOn && WiFi.softAPgetStationNum() > 0;
   const Net& n = pinned ? nets[0] : nets[tryIdx++ % netCount];
-  Serial.printf("[NET] WiFi down %lu s, trying '%s'%s\n", (unsigned long)((now - downSinceMs) / 1000),
+  diag::printf("[NET] WiFi down %lu s, trying '%s'%s\n", (unsigned long)((now - downSinceMs) / 1000),
                 n.ssid.c_str(), pinned ? " (this channel only, phone on hotspot)" : "");
   startAttempt(n.ssid, n.pass, pinned);
 }
@@ -376,7 +377,7 @@ void servicePortal(uint32_t now, bool cloudOnline) {
     // WiFi up but no cloud: after an unused hotspot closed, give the cloud the memory for a while.
     const bool cooling = wifiUp && (int32_t)(now - cloudPortalCooldownUntilMs) < 0;
     if (now - offlineSinceMs >= PORTAL_OFFLINE_AFTER_MS && reason != PortalReason::Offline && !cooling) {
-      Serial.printf("[NET] offline for %lu s: opening the setup hotspot until back online\n",
+      diag::printf("[NET] offline for %lu s: opening the setup hotspot until back online\n",
                     (unsigned long)(PORTAL_OFFLINE_AFTER_MS / 1000));
       openPortal(PortalReason::Offline);
     }
@@ -385,7 +386,7 @@ void servicePortal(uint32_t now, bool cloudOnline) {
     if (reason == PortalReason::Offline) {
       reason = PortalReason::Button;  // back online: the normal 3-minute idle timer takes over
       touchActivity();
-      Serial.printf("[NET] back online: setup hotspot closes after %lu s without use\n",
+      diag::printf("[NET] back online: setup hotspot closes after %lu s without use\n",
                     (unsigned long)(PORTAL_IDLE_CLOSE_MS / 1000));
     }
   }
@@ -421,7 +422,7 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info) {
     }
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
       touchActivity();
-      Serial.println("[NET] a phone joined the setup hotspot");
+      diag::printf("[NET] a phone joined the setup hotspot\n");
       break;
     default:
       break;
@@ -457,7 +458,7 @@ void begin() {
   char name[20];
   snprintf(name, sizeof(name), "TileHub-%02X%02X", mac[4], mac[5]);
   apSsid = name;
-  Serial.printf("[NET] %u saved network(s):", netCount);
+  diag::printf("[NET] %u saved network(s):", netCount);
   for (uint8_t i = 0; i < netCount; i++) Serial.printf(" '%s'", nets[i].ssid.c_str());
   Serial.println();
   if (netCount) startAttempt(nets[0].ssid, nets[0].pass, false);

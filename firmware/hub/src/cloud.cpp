@@ -1,4 +1,5 @@
 #include "cloud.h"
+#include "diag.h"
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -45,6 +46,7 @@ QueueHandle_t cmdQueue = nullptr;
 volatile bool online_ = false;
 volatile uint32_t session_ = 0;
 uint32_t eventCounter = 0;
+uint32_t logCounter = 0;
 char bootTag[9];
 
 // Token shared with the stream task (guarded by mtx). tokenGen changes on every new sign-in.
@@ -95,9 +97,9 @@ void setOnline(bool v) {  // called from both the cloud task and the stream task
   Lock l;
   if (v && !online_) {
     session_ = session_ + 1;
-    Serial.println("[NET] Firebase online");
+    diag::printf("[NET] Firebase online\n");
   } else if (!v && online_) {
-    Serial.println("[NET] Firebase offline");
+    diag::printf("[NET] Firebase offline\n");
   }
   online_ = v;
 }
@@ -150,7 +152,7 @@ int request(const char* method, const String& u, const String& body, String* res
   if (resp) *resp = sink.c_str();
 #ifdef CLOUD_DEBUG
   String p = u.substring(u.indexOf(".app/") + 4, u.indexOf('?') > 0 ? u.indexOf('?') : u.length());
-  Serial.printf("[DBG] %lu %s %s -> %d in %lu ms, heap %u (largest block %u)\n", (unsigned long)millis(), method,
+  diag::printf("[DBG] %lu %s %s -> %d in %lu ms, heap %u (largest block %u)\n", (unsigned long)millis(), method,
                 p.c_str(), code, (unsigned long)(millis() - t0), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
 #else
   (void)t0;
@@ -163,7 +165,7 @@ bool isTokenExpired(int code, const String& resp) { return code == 401 && resp.i
 void queueStatus(const char* mkey, const char* id, const char* status) {
   Lock l;
   if (statusCount >= STATUS_RING) {
-    Serial.println("[ERROR] command status queue full, dropping update");
+    diag::printf("[ERROR] command status queue full, dropping update\n");
     return;
   }
   StatusUpdate& u = statusRing[(statusHead + statusCount) % STATUS_RING];
@@ -228,11 +230,11 @@ bool ensureAuth() {
       haveToken = true;
       authBackoffMs = 0;
       nextAuthAttemptMs = 0;
-      Serial.println("[NET] Firebase signed in as hub");
+      diag::printf("[NET] Firebase signed in as hub\n");
       return true;
     }
   }
-  Serial.printf("[ERROR] Firebase sign-in failed (HTTP %d) %s\n", code, resp.substring(0, 160).c_str());
+  diag::printf("[ERROR] Firebase sign-in failed (HTTP %d) %s\n", code, resp.substring(0, 160).c_str());
   haveToken = false;
   authBackoffMs = authBackoffMs ? min<uint32_t>(authBackoffMs * 2, 60000) : 5000;
   nextAuthAttemptMs = millis() + authBackoffMs;
@@ -267,8 +269,12 @@ void flushPending() {
   }
   if (isTokenExpired(code, resp)) haveToken = false;
   if (code < 0 || code >= 500) setOnline(false);
-  Serial.printf("[ERROR] Firebase write %s (HTTP %d) %s\n", retry ? "will retry" : "rejected, dropped", code,
+  diag::printf("[ERROR] Firebase write %s (HTTP %d) %s\n", retry ? "will retry" : "rejected, dropped", code,
                 resp.substring(0, 160).c_str());
+  if (code == 400) {  // show what was refused (Serial only: it can be long)
+    Serial.print("[ERROR] refused batch: ");
+    Serial.println(body.substring(0, 700));
+  }
 }
 
 void flushStatuses() {
@@ -290,7 +296,7 @@ void flushStatuses() {
   if (isTokenExpired(code, resp)) haveToken = false;
   Lock l;
   if (ok || !transient || statusRing[statusHead].tries >= 3) {
-    if (!ok) Serial.printf("[ERROR] command %s status '%s' not written (HTTP %d)\n", u.id, u.status, code);
+    if (!ok) diag::printf("[ERROR] command %s status '%s' not written (HTTP %d)\n", u.id, u.status, code);
     statusHead = (statusHead + 1) % STATUS_RING;
     statusCount--;
   } else {
@@ -326,7 +332,7 @@ void pollConfigs() {
     if (code != 200) return;
     JsonDocument doc;
     if (deserializeJson(doc, resp) || !doc.is<JsonObject>()) {
-      Serial.printf("[ERROR] %s config is not valid JSON\n", moduleKey(id));
+      diag::printf("[ERROR] %s config is not valid JSON\n", moduleKey(id));
       continue;
     }
     DesiredConfig d;
@@ -339,7 +345,7 @@ void pollConfigs() {
       Lock l;
       desired[i] = d;
     }
-    Serial.printf("[NET] %s config v%u loaded from Firebase\n", moduleKey(id), (unsigned)d.version);
+    diag::printf("[NET] %s config v%u loaded from Firebase\n", moduleKey(id), (unsigned)d.version);
   }
 }
 
@@ -386,7 +392,7 @@ void handleCommand(const String& mkey, const String& id, JsonVariantConst v) {
     if (age > CLOUD_CMD_MAX_AGE_MS) {  // too old: never execute (e.g. queued while the hub was down)
       if (!wasHandled(id.c_str())) {
         markHandled(id.c_str());
-        Serial.printf("[NET] command %s/%s %s is %us old -> expired\n", mkey.c_str(), id.c_str(), type,
+        diag::printf("[NET] command %s/%s %s is %us old -> expired\n", mkey.c_str(), id.c_str(), type,
                       (unsigned)(age / 1000));
         queueStatus(mkey.c_str(), id.c_str(), "expired");
       }
@@ -439,7 +445,7 @@ void dispatchStreamEvent() {
   if (streamEvent == "put" || streamEvent == "patch") {
     JsonDocument doc;
     if (deserializeJson(doc, streamData)) {
-      Serial.println("[ERROR] bad stream JSON");
+      diag::printf("[ERROR] bad stream JSON\n");
       return;
     }
     String segs[3];
@@ -466,7 +472,7 @@ void dispatchStreamEvent() {
     }
     setOnline(true);
   } else if (streamEvent == "cancel") {
-    Serial.println("[ERROR] command stream cancelled by Firebase (permission?)");
+    diag::printf("[ERROR] command stream cancelled by Firebase (permission?)\n");
     closeStream();
     streamRetryAtMs = millis() + 30000;
   } else if (streamEvent == "auth_revoked") {
@@ -503,10 +509,10 @@ void processStreamLine() {
 
 bool openStream(const String& token) {
 #ifdef CLOUD_DEBUG
-  Serial.printf("[DBG] %lu opening stream\n", (unsigned long)millis());
+  diag::printf("[DBG] %lu opening stream\n", (unsigned long)millis());
 #endif
   if (!streamTls.connect(dbHost.c_str(), 443)) {
-    Serial.printf("[ERROR] command stream: TLS connect failed (heap %u, largest block %u)\n", ESP.getFreeHeap(),
+    diag::printf("[ERROR] command stream: TLS connect failed (heap %u, largest block %u)\n", ESP.getFreeHeap(),
                   ESP.getMaxAllocHeap());
     return false;
   }
@@ -516,7 +522,7 @@ bool openStream(const String& token) {
   String status = streamTls.readStringUntil('\n');
   if (!status.startsWith("HTTP/1.1 200")) {
     status.trim();
-    Serial.printf("[ERROR] command stream refused: %s\n", status.c_str());
+    diag::printf("[ERROR] command stream refused: %s\n", status.c_str());
     if (status.indexOf("401") >= 0) haveToken = false;
     streamTls.stop();
     return false;
@@ -532,7 +538,7 @@ bool openStream(const String& token) {
   streaming = true;
   streamLastDataMs = millis();
   streamLine.reserve(512);
-  Serial.println("[NET] listening for commands");
+  diag::printf("[NET] listening for commands\n");
   return true;
 }
 
@@ -553,20 +559,23 @@ void streamTask(void*) {
       gen = tokenGen;
       token = streamToken;
     }
+    diag::phase(diag::Task::Stream, "connect");
     if (!openStream(token)) {
       streamRetryAtMs = millis() + 5000;
       continue;
     }
 
     while (streaming && gen == tokenGen && WiFi.status() == WL_CONNECTED && !pollCmds) {
+      diag::phase(diag::Task::Stream, "read");
       int n = streamTls.read(buf, sizeof(buf));  // blocks until data or timeout
+      diag::phase(diag::Task::Stream, "parse");
       if (n <= 0) {
         if (!streamTls.connected()) {
-          Serial.println("[NET] command stream closed, reconnecting");
+          diag::printf("[NET] command stream closed, reconnecting\n");
           break;
         }
         if (millis() - streamLastDataMs > CLOUD_STREAM_IDLE_MS) {
-          Serial.println("[NET] command stream idle, reconnecting");
+          diag::printf("[NET] command stream idle, reconnecting\n");
           break;
         }
         vTaskDelay(pdMS_TO_TICKS(20));
@@ -581,7 +590,7 @@ void streamTask(void*) {
         } else if (c != '\r') {
           // concat() fails (returns false) when the heap can't grow the line: reconnect instead of crashing.
           if (streamLine.length() >= 16384 || !streamLine.concat(c)) {
-            Serial.printf("[ERROR] command stream line too long or out of memory (heap %u, largest block %u), reconnecting\n",
+            diag::printf("[ERROR] command stream line too long or out of memory (heap %u, largest block %u), reconnecting\n",
                           ESP.getFreeHeap(), ESP.getMaxAllocHeap());
             streaming = false;
             break;
@@ -589,7 +598,7 @@ void streamTask(void*) {
         }
       }
     }
-    if (pollCmds) Serial.println("[NET] setup hotspot open: command stream paused, polling commands every second");
+    if (pollCmds) diag::printf("[NET] setup hotspot open: command stream paused, polling commands every second\n");
     closeStream();
     if ((int32_t)(millis() - streamRetryAtMs) >= 0) streamRetryAtMs = millis() + 2000;
   }
@@ -608,7 +617,7 @@ void retention() {
   String resp;
   int code = request("GET", url("events") + q, "", &resp);
   if (code != 200) {
-    Serial.printf("[ERROR] event retention query failed (HTTP %d)\n", code);
+    diag::printf("[ERROR] event retention query failed (HTTP %d)\n", code);
     return;
   }
   JsonDocument doc;
@@ -618,7 +627,16 @@ void retention() {
     setNull((String("events/") + kv.key().c_str()).c_str());
     n++;
   }
-  if (n) Serial.printf("[NET] deleting %d events older than 30 days\n", n);
+  if (n) diag::printf("[NET] deleting %d events older than 30 days\n", n);
+
+  // Hub log (/hubLog): 7 days.
+  snprintf(q, sizeof(q), "&orderBy=%%22ts%%22&endAt=%llu&limitToFirst=100",
+           (unsigned long long)(epochMs() - CLOUD_HUBLOG_KEEP_MS));
+  code = request("GET", url("hubLog") + q, "", &resp);
+  if (code != 200) return;
+  JsonDocument logs;
+  if (deserializeJson(logs, resp) || !logs.is<JsonObject>()) return;
+  for (JsonPairConst kv : logs.as<JsonObjectConst>()) setNull((String("hubLog/") + kv.key().c_str()).c_str());
 }
 
 void task(void*) {
@@ -632,6 +650,7 @@ void task(void*) {
       configTime(0, 0, "pool.ntp.org", "time.google.com");
       timeStarted = true;
     }
+    diag::phase(diag::Task::Cloud, "auth");
     if (!ensureAuth()) {
       vTaskDelay(pdMS_TO_TICKS(200));
       continue;
@@ -642,7 +661,7 @@ void task(void*) {
   do {                                                                                            \
     uint32_t _t = millis();                                                                       \
     stmt;                                                                                         \
-    if (millis() - _t > 1000) Serial.printf("[DBG] %s took %lu ms\n", name, (unsigned long)(millis() - _t)); \
+    if (millis() - _t > 1000) diag::printf("[DBG] %s took %lu ms\n", name, (unsigned long)(millis() - _t)); \
   } while (0)
     static bool dnsTested = false;
     if (!dnsTested) {
@@ -651,10 +670,10 @@ void task(void*) {
       for (const char* h : {"identitytoolkit.googleapis.com", dbHost.c_str(), "pool.ntp.org"}) {
         uint32_t t = millis();
         bool ok = WiFi.hostByName(h, ip);
-        Serial.printf("[DBG] DNS %s -> %s in %lu ms\n", h, ok ? ip.toString().c_str() : "FAIL",
+        diag::printf("[DBG] DNS %s -> %s in %lu ms\n", h, ok ? ip.toString().c_str() : "FAIL",
                       (unsigned long)(millis() - t));
       }
-      Serial.printf("[DBG] DNS server %s, time synced: %d\n", WiFi.dnsIP().toString().c_str(), timeSynced());
+      diag::printf("[DBG] DNS server %s, time synced: %d\n", WiFi.dnsIP().toString().c_str(), timeSynced());
     }
 #else
 #define TIMED(name, stmt) stmt
@@ -662,18 +681,24 @@ void task(void*) {
     const uint32_t now = millis();
     if (now - lastFlushMs >= CLOUD_FLUSH_MS) {
       lastFlushMs = now;
+      diag::phase(diag::Task::Cloud, "flush");
       TIMED("flush", flushPending());
     }
+    diag::phase(diag::Task::Cloud, "statuses");
     TIMED("statuses", flushStatuses());
     if (pollCmds && timeSynced() && now - lastCmdPollMs >= CLOUD_CMD_POLL_MS) {
       lastCmdPollMs = now;
+      diag::phase(diag::Task::Cloud, "cmd-poll");
       TIMED("commands", pollCommands());
     }
     if (now - lastPollMs >= CLOUD_CONFIG_POLL_MS) {
       lastPollMs = now;
+      diag::phase(diag::Task::Cloud, "config-poll");
       TIMED("poll", pollConfigs());
     }
+    diag::phase(diag::Task::Cloud, "retention");
     TIMED("retention", retention());
+    diag::phase(diag::Task::Cloud, "idle");
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
@@ -684,7 +709,7 @@ void task(void*) {
 void setPollCommands(bool on) {
   if (pollCmds == on) return;
   pollCmds = on;
-  if (!on) Serial.println("[NET] setup hotspot closed: back to the command stream");
+  if (!on) diag::printf("[NET] setup hotspot closed: back to the command stream\n");
 }
 
 void begin() {
@@ -730,7 +755,7 @@ void setServerTime(const char* path) {
 void pushEvent(const char* module, const char* code, int32_t arg0, int32_t arg1) {
   Lock l;
   if (measureJson(pending) > CLOUD_PENDING_MAX_BYTES) {
-    Serial.printf("[ERROR] cloud backlog full, event %s dropped\n", code);
+    diag::printf("[ERROR] cloud backlog full, event %s dropped\n", code);
     return;
   }
   char key[40];
@@ -749,6 +774,24 @@ void pushEvent(const char* module, const char* code, int32_t arg0, int32_t arg1)
   JsonArray a = e["args"].to<JsonArray>();
   a.add(arg0);
   a.add(arg1);
+}
+
+void pushLog(char lvl, const char* msg) {
+  Lock l;
+  if (measureJson(pending) > CLOUD_PENDING_MAX_BYTES) return;  // offline backlog full: keep events, drop logs
+  char key[40];
+  snprintf(key, sizeof(key), "hubLog/h%s_%06lu", bootTag, (unsigned long)logCounter++);
+  JsonObject e = pending[String(key)].to<JsonObject>();
+  timeval tv;
+  gettimeofday(&tv, nullptr);
+  if (tile::epochValid(tv.tv_sec))
+    e["ts"] = (uint64_t)tv.tv_sec * 1000ULL + tv.tv_usec / 1000;
+  else
+    e["ts"][".sv"] = "timestamp";
+  // String(): ArduinoJson keeps only a POINTER to char arrays (it takes them for literals). A local
+  // array here was garbage by the time of the flush, and the whole batch was refused (HTTP 400).
+  e["lvl"] = String(lvl);
+  e["msg"] = String(msg);
 }
 
 void setCommandStatus(const char* mkey, const char* id, const char* status) { queueStatus(mkey, id, status); }

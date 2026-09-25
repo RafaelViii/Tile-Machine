@@ -5,7 +5,7 @@
 
 #define HUB_FW_MAJOR 0
 #define HUB_FW_MINOR 3
-#define HUB_FW_PATCH 1
+#define HUB_FW_PATCH 2
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
 // ---- Clock ----
@@ -64,4 +64,10 @@ constexpr uint32_t CLOUD_CMD_MAX_AGE_MS = 30000;  // older commands are marked "
 constexpr uint32_t CLOUD_CMD_KEEP_MS = 24UL * 3600 * 1000;       // delete finished commands after 24 h
 constexpr uint64_t CLOUD_EVENT_KEEP_MS = 30ULL * 24 * 3600 * 1000;  // delete events after 30 days
 constexpr uint32_t CLOUD_RETENTION_EVERY_MS = 24UL * 3600 * 1000;
+constexpr uint64_t CLOUD_HUBLOG_KEEP_MS = 7ULL * 24 * 3600 * 1000;  // /hubLog kept 7 days
+
+// ---- Remote diagnostics (src/diag.cpp) ----
+constexpr uint32_t DIAG_REPEAT_MS = 60000;         // the same message again within this: not sent (counted)
+constexpr uint32_t DIAG_WINDOW_MS = 10UL * 60 * 1000;
+constexpr uint8_t DIAG_MAX_PER_WINDOW = 30;        // at most this many log lines per window
 constexpr size_t CLOUD_PENDING_MAX_BYTES = 12000;  // drop new events beyond this while offline

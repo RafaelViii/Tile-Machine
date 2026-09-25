@@ -1,10 +1,12 @@
-import { useState, type ComponentType, type ReactNode, type SVGProps } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps } from 'react';
+import { limitToLast, onValue, orderByChild, query, ref } from 'firebase/database';
+import { db } from '../../lib/firebase';
 import { Link } from 'react-router';
 import { ContainerIcon, HotpressIcon, HubIcon, ShredderIcon } from '../../components/icons';
 import { Badge, Card, CardTitle, Stat, cx } from '../../components/ui';
-import { ago, faultList, uptime } from '../../shared/format';
+import { ago, dateTime, faultList, uptime } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
-import type { ModuleId } from '../../shared/types/rtdb';
+import type { HubDiag, HubLogNode, ModuleId } from '../../shared/types/rtdb';
 
 type Tone = 'green' | 'amber' | 'red' | 'zinc' | 'sky';
 
@@ -89,7 +91,7 @@ function hubRow(m: MachineStatus) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Network" value={hub.wifiSsid || '—'} />
           <Stat label="Setup hotspot" value={hub.portal ? 'Open' : 'Off'} tone={hub.portal ? 'sky' : undefined} />
-          <Stat label="Up since" value={hub.bootAt ? uptime(Math.round((now - hub.bootAt) / 1000)) : '—'} />
+          <Stat label="Up for" value={hub.diag ? uptime(hub.diag.uptimeS) : hub.bootAt ? uptime(Math.round((now - hub.bootAt) / 1000)) : "—"} />
           <Stat label="IP" value={hub.ip ?? '—'} />
           <Stat
             label="WiFi"
@@ -101,6 +103,8 @@ function hubRow(m: MachineStatus) {
           <Stat label="Protocol" value={hub.protocolVersion !== undefined ? `v${hub.protocolVersion}` : '—'} />
         </div>
       )}
+      {hub?.diag && <HubHealth d={hub.diag} />}
+      {hub && <HubLog />}
     </DeviceRow>
   );
 }
@@ -204,5 +208,68 @@ export function DeviceCards() {
         {moduleRow(m, 'hotpress', 'Hot Press · Designing · Curing', 'esp3', HotpressIcon, '/hotpress')}
       </ul>
     </Card>
+  );
+}
+
+const kb = (b: number) => `${Math.round(b / 1024)} KB`;
+
+/** Hub memory + loop health (fw 0.3.2+). "Largest block" is what a new cloud (TLS) connection needs: ~40 KB. */
+function HubHealth({ d }: { d: HubDiag }) {
+  const low = d.block < 42 * 1024;
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <Stat label="Memory free" value={kb(d.heap)} />
+      <Stat label="Lowest since start" value={kb(d.minHeap)} tone={d.minHeap < 40 * 1024 ? 'amber' : undefined} />
+      <Stat label="Largest block" value={kb(d.block)} tone={low ? 'amber' : undefined} />
+      <Stat label="Slowest loop (10 s)" value={`${d.loopMaxMs} ms`} tone={d.loopMaxMs > 500 ? 'amber' : undefined} />
+    </div>
+  );
+}
+
+const LVL = { E: { text: 'Error', tone: 'red' }, I: { text: 'Info', tone: 'zinc' }, C: { text: 'Crash', tone: 'red' } } as const;
+
+/** The hub's own messages (/hubLog, 7 days): errors, WiFi/cloud/hotspot changes, crash reports. */
+function HubLog() {
+  const [rows, setRows] = useState<(HubLogNode & { id: string })[] | undefined>(undefined);
+  const [all, setAll] = useState(false);
+  useEffect(
+    () =>
+      onValue(
+        query(ref(db, 'hubLog'), orderByChild('ts'), limitToLast(all ? 200 : 15)),
+        (snap) => {
+          const list: (HubLogNode & { id: string })[] = [];
+          snap.forEach((c) => {
+            list.push({ ...(c.val() as HubLogNode), id: c.key! });
+          });
+          setRows(list.reverse());
+        },
+        () => setRows([]),
+      ),
+    [all],
+  );
+  return (
+    <div className="mt-4">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold">Hub log</span>
+        <button type="button" onClick={() => setAll(!all)} className="rounded-md px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200">
+          {all ? 'Show less' : 'Show more'}
+        </button>
+      </div>
+      {rows === undefined ? (
+        <p className="text-xs text-zinc-500">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-zinc-500">No messages yet (hub fw 0.3.2 or newer writes them).</p>
+      ) : (
+        <ul className={cx('divide-y divide-zinc-800 rounded-xl bg-zinc-950/60 px-3 ring-1 ring-zinc-800', all && 'max-h-96 overflow-y-auto')}>
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2 text-xs">
+              <span className="w-36 shrink-0 text-zinc-500 tabular-nums">{typeof r.ts === 'number' ? dateTime(r.ts) : ''}</span>
+              <Badge tone={LVL[r.lvl]?.tone ?? 'zinc'}>{LVL[r.lvl]?.text ?? r.lvl}</Badge>
+              <span className="min-w-0 flex-1 break-words text-zinc-300">{r.msg}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

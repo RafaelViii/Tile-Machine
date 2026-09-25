@@ -157,6 +157,9 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       a 5-h "offline with hotspot open" deadlock (hotspot + TLS didn't fit a fragmented heap). Hotspot with WiFi
       up now closes when unused; cloud watchdog restarts after 15 min WiFi-up-no-cloud (doubling). Tested with
       the HUB_TEST_* build flags (docs/modules/hub.md). Accounts work itself is done.
+      **Hub fw 0.3.2:** remote diagnostics (/hub/diag every 10 s, /hubLog 7 days, crash report after a crash
+      restart), shown in Dashboard → Devices → Main hub. Verified on COM7 incl. a deliberate test crash.
+      Next: a 2–3 day unattended soak test (boards may stay on the PC's USB; PC must not sleep).
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):

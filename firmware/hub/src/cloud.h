@@ -51,6 +51,9 @@ void setServerTime(const char* path);
 /** Queue an /events entry {ts, module, code, args}. */
 void pushEvent(const char* module, const char* code, int32_t arg0 = 0, int32_t arg1 = 0);
 
+/** Queue a /hubLog entry {ts, lvl, msg} (lvl 'E' error, 'I' info, 'C' crash report). Loop context only. */
+void pushLog(char lvl, const char* msg);
+
 /** Separate write of commands/{mkey}/{id}/{status, updatedAt}. */
 void setCommandStatus(const char* mkey, const char* id, const char* status);
 

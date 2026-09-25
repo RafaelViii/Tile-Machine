@@ -18,6 +18,7 @@
 #include <TileTime.h>
 
 #include "cloud.h"
+#include "diag.h"
 #include "codec.h"
 #include "config.h"
 #include "pins.h"
@@ -80,7 +81,7 @@ bool clockValid() { return epochValid(time(nullptr)); }
 void logClock(const char* prefix) {
   char s[24];
   formatLocalTime(time(nullptr), LOCAL_TZ_OFFSET_MIN, s, sizeof(s));
-  Serial.printf("[STATE] %s %s (UTC%+d), source %s, RTC %s\n", prefix, s, LOCAL_TZ_OFFSET_MIN / 60, timeSourceName(),
+  diag::printf("[STATE] %s %s (UTC%+d), source %s, RTC %s\n", prefix, s, LOCAL_TZ_OFFSET_MIN / 60, timeSourceName(),
                 rtc::statusName(rtcStatus));
 }
 
@@ -93,11 +94,11 @@ void initClock() {
     settimeofday(&tv, nullptr);
     timeSource = TimeSource::RTC;
     logClock("clock from RTC:");
-    Serial.printf("[STATE] RTC temperature %.2f C\n", rtc::temperature());
+    diag::printf("[STATE] RTC temperature %.2f C\n", rtc::temperature());
   } else if (rtcStatus == rtc::Status::LOST_POWER) {
-    Serial.println("[STATE] RTC found but its time is not set (new/removed battery): waiting for internet time");
+    diag::printf("[STATE] RTC found but its time is not set (new/removed battery): waiting for internet time\n");
   } else {
-    Serial.println("[ERROR] DS3231 RTC not found on I2C (SDA 21 / SCL 22): time only from internet");
+    diag::printf("[ERROR] DS3231 RTC not found on I2C (SDA 21 / SCL 22): time only from internet\n");
   }
   sntp_set_time_sync_notification_cb(onNtpSync);  // cloud task starts SNTP via configTime()
 }
@@ -116,12 +117,12 @@ void serviceClock() {
     const uint32_t drift = ok ? (r > now ? r - now : now - r) : UINT32_MAX;
     if (!ok || drift > RTC_MAX_DRIFT_S) {
       if (rtc::write(now)) {
-        if (ok) Serial.printf("[STATE] RTC corrected by %lu s\n", (unsigned long)drift);
-        else Serial.println("[STATE] RTC set from internet time");
+        if (ok) diag::printf("[STATE] RTC corrected by %lu s\n", (unsigned long)drift);
+        else diag::printf("[STATE] RTC set from internet time\n");
         if (rtcStatus != rtc::Status::OK) clockDirty = true;
         rtcStatus = rtc::Status::OK;
       } else {
-        Serial.println("[ERROR] writing the RTC failed");
+        diag::printf("[ERROR] writing the RTC failed\n");
       }
     }
   }
@@ -153,7 +154,7 @@ void loadRegistry() {
       transport.ensurePeer(mods[id].mac);
       char m[18];
       macToStr(mods[id].mac, m, sizeof(m));
-      Serial.printf("[NET] known module %s at %s\n", moduleKey((ModuleId)id), m);
+      diag::printf("[NET] known module %s at %s\n", moduleKey((ModuleId)id), m);
     }
   }
   p.end();
@@ -189,8 +190,8 @@ void writeInfo(uint8_t id) {
   char m[18], fw[12];
   macToStr(mods[id].mac, m, sizeof(m));
   fwDecode(mods[id].fw, fw, sizeof(fw));
-  d["mac"] = m;
-  d["fw"] = fw;
+  d["mac"] = String(m);  // String(): make ArduinoJson copy local buffers
+  d["fw"] = String(fw);
   d["pairedAt"][".sv"] = "timestamp";
   char path[40];
   snprintf(path, sizeof(path), "modules/%s/info", moduleKey((ModuleId)id));
@@ -227,6 +228,17 @@ void writeHubFields(bool full) {
   cloud::set("hub/wifiChannel", d.as<JsonVariantConst>());
   d.set(net::portalOpen());
   cloud::set("hub/portal", d.as<JsonVariantConst>());
+  {
+    const diag::Health h = diag::health();
+    JsonDocument g;
+    g["heap"] = h.heap;
+    g["minHeap"] = h.minHeap;
+    g["block"] = h.block;
+    g["uptimeS"] = h.uptimeS;
+    g["loopMaxMs"] = h.loopMaxMs;
+    g["logSuppressed"] = h.suppressed;
+    cloud::set("hub/diag", g.as<JsonVariantConst>());
+  }
   if (!full) return;
   d.set(net::currentSsid());
   cloud::set("hub/wifiSsid", d.as<JsonVariantConst>());
@@ -236,7 +248,7 @@ void writeHubFields(bool full) {
   cloud::set("hub/rtc", d.as<JsonVariantConst>());
   char fw[12];
   fwDecode(HUB_FW, fw, sizeof(fw));
-  d.set(fw);
+  d.set(String(fw));
   cloud::set("hub/fw", d.as<JsonVariantConst>());
   d.set(WiFi.localIP().toString());
   cloud::set("hub/ip", d.as<JsonVariantConst>());
@@ -252,7 +264,7 @@ void touch(uint8_t id, const uint8_t* mac) {
       char oldm[18], newm[18];
       macToStr(e.mac, oldm, sizeof(oldm));
       macToStr(mac, newm, sizeof(newm));
-      Serial.printf("[NET] %s replaced: %s -> %s\n", moduleKey((ModuleId)id), oldm, newm);
+      diag::printf("[NET] %s replaced: %s -> %s\n", moduleKey((ModuleId)id), oldm, newm);
       reliable.cancelFor(e.mac);
       transport.removePeer(e.mac);
       cloud::pushEvent(moduleKey((ModuleId)id), "MODULE_REPLACED");
@@ -272,7 +284,7 @@ void touch(uint8_t id, const uint8_t* mac) {
     e.infoDirty = true;
     timeDue[id] = true;  // sent after this loop's WELCOME, so the module is already paired
     cloud::pushEvent(moduleKey((ModuleId)id), "MODULE_ONLINE");
-    Serial.printf("[NET] %s ONLINE\n", moduleKey((ModuleId)id));
+    diag::printf("[NET] %s ONLINE\n", moduleKey((ModuleId)id));
   }
 }
 
@@ -336,7 +348,7 @@ void handleFrame(const Frame& f) {
     case MsgType::STATUS: {
       if (plen != statusSizeFor((ModuleId)id)) {
         if (!e.sizeWarned) {
-          Serial.printf("[ERROR] %s STATUS is %u bytes, expected %u: firmware/protocol mismatch\n",
+          diag::printf("[ERROR] %s STATUS is %u bytes, expected %u: firmware/protocol mismatch\n",
                         moduleKey((ModuleId)id), (unsigned)plen, (unsigned)statusSizeFor((ModuleId)id));
           e.sizeWarned = true;
         }
@@ -360,7 +372,7 @@ void handleFrame(const Frame& f) {
       if (!dedup.lookup(f.mac, h->seq, r)) {
         const EventPayload* ev = reinterpret_cast<const EventPayload*>(payload);
         cloud::pushEvent(moduleKey((ModuleId)id), eventName(ev->code), ev->arg0, ev->arg1);
-        Serial.printf("[NET] %s event %s (%ld, %ld)\n", moduleKey((ModuleId)id), eventName(ev->code),
+        diag::printf("[NET] %s event %s (%ld, %ld)\n", moduleKey((ModuleId)id), eventName(ev->code),
                       (long)ev->arg0, (long)ev->arg1);
         dedup.remember(f.mac, h->seq, r);
       }
@@ -386,7 +398,7 @@ void checkPresence() {
       e.presenceDirty = true;
       reliable.cancelFor(e.mac);
       cloud::pushEvent(moduleKey((ModuleId)id), "MODULE_OFFLINE");
-      Serial.printf("[NET] %s OFFLINE (no packets for %lu ms)\n", moduleKey((ModuleId)id),
+      diag::printf("[NET] %s OFFLINE (no packets for %lu ms)\n", moduleKey((ModuleId)id),
                     (unsigned long)(now - e.lastRxMs));
     }
   }
@@ -418,7 +430,7 @@ void pushConfigs() {
     memcpy(buf + sizeof(MsgHeader), d.bin, d.len);
     if (reliable.send(e.mac, buf, sizeof(MsgHeader) + d.len, d.version)) {
       e.lastConfigSendMs = now;
-      Serial.printf("[NET] sending config v%u to %s\n", (unsigned)d.version, moduleKey((ModuleId)id));
+      diag::printf("[NET] sending config v%u to %s\n", (unsigned)d.version, moduleKey((ModuleId)id));
     }
   }
 }
@@ -438,7 +450,7 @@ void finishIfDone(uint8_t slot) {
   InFlight& f = inflight[slot];
   if (!f.used || f.remaining > 0) return;
   cloud::setCommandStatus(f.mkey, f.id, f.failed ? "failed" : "done");
-  Serial.printf("[NET] command %s/%s -> %s\n", f.mkey, f.id, f.failed ? "failed" : "done");
+  diag::printf("[NET] command %s/%s -> %s\n", f.mkey, f.id, f.failed ? "failed" : "done");
   f.used = false;
 }
 
@@ -451,7 +463,7 @@ void runCommands() {
         slot = i;
         break;
       }
-    Serial.printf("[NET] command %s %s (target %u, arg %ld)\n", c.mkey, cmdName(c.cmd), c.target, (long)c.arg);
+    diag::printf("[NET] command %s %s (target %u, arg %ld)\n", c.mkey, cmdName(c.cmd), c.target, (long)c.arg);
     if (slot < 0) {
       cloud::setCommandStatus(c.mkey, c.id, "failed");
       continue;
@@ -493,7 +505,7 @@ void onReliableDone(const ReliableSender::Pending& p, bool acked, AckResult r) {
     ModuleEntry& e = mods[id];
     const uint32_t version = p.cookie;
     if (!acked) {
-      Serial.printf("[NET] config v%u to %s not acknowledged, will retry\n", (unsigned)version, moduleKey((ModuleId)id));
+      diag::printf("[NET] config v%u to %s not acknowledged, will retry\n", (unsigned)version, moduleKey((ModuleId)id));
       return;
     }
     switch (r) {
@@ -508,7 +520,7 @@ void onReliableDone(const ReliableSender::Pending& p, bool acked, AckResult r) {
       default:
         writeConfigApplied(id, version, "rejected");
         e.rejectedVersion = version;
-        Serial.printf("[ERROR] %s rejected config v%u\n", moduleKey((ModuleId)id), (unsigned)version);
+        diag::printf("[ERROR] %s rejected config v%u\n", moduleKey((ModuleId)id), (unsigned)version);
         break;
     }
     return;
@@ -599,7 +611,7 @@ void checkBootButton() {
   if (digitalRead(PIN_BOOT_BUTTON) == LOW) {
     if (!bootPressedSinceMs) bootPressedSinceMs = millis();
     if (millis() - bootPressedSinceMs >= BOOT_BUTTON_HOLD_MS) {
-      Serial.println("[STATE] BOOT held 5 s: clearing module pairings and restarting");
+      diag::printf("[STATE] BOOT held 5 s: clearing module pairings and restarting\n");
       clearRegistry();
       delay(100);
       ESP.restart();
@@ -609,7 +621,7 @@ void checkBootButton() {
   const uint32_t held = bootPressedSinceMs ? millis() - bootPressedSinceMs : 0;
   bootPressedSinceMs = 0;
   if (held >= 50 && held < BOOT_BUTTON_SHORT_MAX_MS) {
-    Serial.println("[STATE] BOOT pressed: opening the setup hotspot");
+    diag::printf("[STATE] BOOT pressed: opening the setup hotspot\n");
     net::openPortal(net::PortalReason::Button);
   }
 }
@@ -678,7 +690,7 @@ void cloudWatchdog() {
   if (!cloudDownSinceMs) cloudDownSinceMs = now;
   const uint32_t limit = CLOUD_STUCK_RESTART_MS << min<uint8_t>(stuckRestarts, 3);  // 15, 30, 60, 120 min
   if (now - cloudDownSinceMs < limit || net::portalInUse()) return;
-  Serial.printf("[ERROR] WiFi up but no cloud for %lu min (heap %u, largest block %u): restarting the hub "
+  diag::printf("[ERROR] WiFi up but no cloud for %lu min (heap %u, largest block %u): restarting the hub "
                 "(modules keep running)\n",
                 (unsigned long)(limit / 60000), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
   stuckRestarts++;
@@ -690,7 +702,7 @@ void cloudWatchdog() {
 uint32_t lastPresenceMs = 0, lastPushMs = 0, lastReportMs = 0;
 
 void printReport() {
-  Serial.printf("[STATE] WiFi %s ch %u rssi %d | Firebase %s | hotspot %s | heap %u (block %u) | modules:",
+  diag::printf("[STATE] WiFi %s ch %u rssi %d | Firebase %s | hotspot %s | heap %u (block %u) | modules:",
                 WiFi.status() == WL_CONNECTED ? "up" : "DOWN", radioChannel(), WiFi.RSSI(),
                 cloud::online() ? "online" : "OFFLINE", net::portalOpen() ? "open" : "off", ESP.getFreeHeap(),
                 ESP.getMaxAllocHeap());
@@ -724,14 +736,14 @@ void setup() {
     delay(20);  // setup only: ESP-NOW isn't running yet
   }
   if (net::connected()) {
-    Serial.printf("[NET] WiFi '%s' connected, IP %s, channel %u\n", WiFi.SSID().c_str(),
+    diag::printf("[NET] WiFi '%s' connected, IP %s, channel %u\n", WiFi.SSID().c_str(),
                   WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
-    Serial.println("[ERROR] WiFi not connected yet: running ESP-NOW anyway, retrying in the background");
+    diag::printf("[ERROR] WiFi not connected yet: running ESP-NOW anyway, retrying in the background\n");
   }
 
   if (!transport.begin(24)) {
-    Serial.println("[ERROR] ESP-NOW init failed, restarting in 5 s");
+    diag::printf("[ERROR] ESP-NOW init failed, restarting in 5 s\n");
     delay(5000);
     ESP.restart();
   }
@@ -750,19 +762,22 @@ void setup() {
   }
   const uint8_t cause = why == ESP_RST_SW ? restartCause : 0;
   restartCause = 0;
-  Serial.printf("[STATE] reset reason: %s (%d)%s\n", resetReasonName(why), (int)why,
+  diag::printf("[STATE] reset reason: %s (%d)%s\n", resetReasonName(why), (int)why,
                 cause == 1 ? ", by the cloud watchdog" : "");
   cloud::pushEvent("hub", "HUB_BOOT", (int32_t)why, cause);
+  diag::begin((int)why);  // crash report, if the last reset was a crash
   for (uint8_t id = 1; id < MODULE_ID_COUNT; id++) mods[id].presenceDirty = true;  // everyone offline until heard
-  Serial.println("[NET] ESP-NOW ready, waiting for modules");
+  diag::printf("[NET] ESP-NOW ready, waiting for modules\n");
 }
 
 void loop() {
+  diag::phase(diag::Task::Loop, "frames");
   Frame f;
   while (transport.poll(f)) {
     flickerUntilMs = millis() + 30;
     handleFrame(f);
   }
+  diag::phase(diag::Task::Loop, "commands");
   reliable.loop();
   runCommands();
 
@@ -775,12 +790,23 @@ void loop() {
     lastPushMs = now;
     pushConfigs();
   }
+  diag::phase(diag::Task::Loop, "net");
   net::loop(cloudOk());
   cloud::setPollCommands(net::portalOpen());  // the hotspot needs the stream's memory
   cloudWatchdog();
   serviceClock();
   serviceTimeBroadcast();
+  diag::phase(diag::Task::Loop, "cloud-sync");
   syncCloud();
+  diag::phase(diag::Task::Loop, "diag");
+  diag::loop();
+#ifdef HUB_TEST_CRASH_AFTER_MS  // test build only: crash on purpose to check the crash report
+  if (millis() > HUB_TEST_CRASH_AFTER_MS) {
+    diag::phase(diag::Task::Loop, "test-crash");
+    volatile int* p = nullptr;
+    *p = 1;
+  }
+#endif
   updateLed();
   checkBootButton();
   if (now - lastReportMs >= 10000) {
