@@ -80,13 +80,18 @@ export function Layout() {
   );
 }
 
-/** Quiet hub indicator at the end of the tab row: dot + short text, red only when something is wrong. */
+/** Quiet hub indicator at the end of the tab row: icon + dot (text in the tooltip); one red word only when offline. */
 function HubStatus({ online, loading }: { online: boolean; loading: boolean }) {
-  const text = loading ? 'Connecting…' : online ? 'Hub online' : 'Hub offline';
+  const title = online
+    ? 'Main hub online'
+    : loading
+      ? 'Connecting to the hub…'
+      : 'Main hub offline: the website cannot reach the machine';
   return (
     <span
       role="status"
-      title={online ? 'Main hub is online' : loading ? 'Connecting to the hub' : 'Main hub is offline: the website cannot reach the machine'}
+      aria-label={title}
+      title={title}
       className={cx(
         'flex shrink-0 items-center gap-1.5 text-xs font-medium',
         online ? 'text-zinc-400' : loading ? 'text-zinc-500' : 'text-red-400',
@@ -94,7 +99,7 @@ function HubStatus({ online, loading }: { online: boolean; loading: boolean }) {
     >
       <HubIcon className="h-3.5 w-3.5" />
       <span className={cx('h-2 w-2 rounded-full', online ? 'bg-emerald-400' : loading ? 'bg-zinc-600' : 'bg-red-500')} />
-      <span className={online ? 'hidden sm:inline' : undefined}>{text}</span>
+      {!online && !loading && <span>Offline</span>}
     </span>
   );
 }
