@@ -146,6 +146,12 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 
 ## 9. Open questions / pending decisions
 
+- **OPEN BUG (shredder, 2026-09-25):** random screen/relay changes, and the board's USB serial keeps dropping
+  ("device not functioning"), both signs of EMI. Shredder fw 0.2.2 + hotpress 0.1.3 have per-input noise
+  detectors (lib/TileIO): the web Devices list names the noisy input. Next: check which fault shows
+  during motor/relay use, then add an RC filter to that input and/or a flyback diode/snubber at the relay/motor.
+  Hotpress ON button: contact chatter confirmed, 4.7k pull-up + 1k + 100nF recommended.
+
 - **DS3231 RTC on the hub** is done (docs/modules/hub.md "Clock"): time at boot without internet,
   real event timestamps, `TIME` to modules for OLED clocks. Still open: keep unsent events in its
   AT24C32 EEPROM through power cuts.
