@@ -159,7 +159,12 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       the HUB_TEST_* build flags (docs/modules/hub.md). Accounts work itself is done.
       **Hub fw 0.3.2:** remote diagnostics (/hub/diag every 10 s, /hubLog 7 days, crash report after a crash
       restart), shown in Dashboard → Devices → Main hub. Verified on COM7 incl. a deliberate test crash.
-      Next: a 2–3 day unattended soak test (boards may stay on the PC's USB; PC must not sleep).
+      **Hub fw 0.3.3 (2026-09-26):** the 0.3.1 watchdog never fired because WiFi blips (router dropping every
+      20-60 s) reset its timer: now it counts from the last successful cloud contact. New self-repair: 3
+      connection failures in a row -> rebuild HTTP clients + stream (no restart). Both verified with test builds
+      under the real flaky WiFi. Root cause of the TLS -0x7F00 failures with ~95 KB free is still unknown.
+      Next: a 2–3 day unattended soak test (boards may stay on the PC's USB; PC must not sleep), then read
+      Dashboard → Main hub (health + Hub log).
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):

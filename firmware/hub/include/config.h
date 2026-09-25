@@ -5,7 +5,7 @@
 
 #define HUB_FW_MAJOR 0
 #define HUB_FW_MINOR 3
-#define HUB_FW_PATCH 2
+#define HUB_FW_PATCH 3
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
 // ---- Clock ----
@@ -57,6 +57,8 @@ constexpr uint32_t BOOT_BUTTON_SHORT_MAX_MS = 1500;  // shorter press = open the
 
 // ---- Cloud (Firebase) ----
 constexpr uint32_t CLOUD_FLUSH_MS = 500;          // batched PATCH of state/presence/events
+constexpr uint8_t CLOUD_TLS_FAILS_RESET = 3;            // connection failures in a row -> rebuild the HTTP clients
+constexpr uint32_t CLOUD_CLIENT_RESET_GAP_MS = 120000;   // at most once per 2 min
 constexpr uint32_t CLOUD_CONFIG_POLL_MS = 3000;   // check modules/*/config/version
 constexpr uint32_t CLOUD_CMD_POLL_MS = 1000;      // /commands poll while the setup hotspot is open (no stream)
 constexpr uint32_t CLOUD_STREAM_IDLE_MS = 70000;  // RTDB sends keep-alive every ~30 s

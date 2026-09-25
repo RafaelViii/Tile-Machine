@@ -103,8 +103,12 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
 - **Why the difference (fw 0.3.1):** the hotspot uses ~46 KB. After hours of running, with the heap
   fragmented, the TLS connection to Firebase could no longer be set up next to it (mbedtls -0x7F00,
   out of memory), so fw 0.3.0 stayed "offline with the hotspot open" for 5 h. Found 2026-09-26.
-- **Cloud watchdog (last resort, fw 0.3.1):** WiFi up but no cloud for 15 min and nobody on the setup
-  page = stuck network/TLS stack: the hub restarts (modules keep running). In a row the wait doubles
+- **Self-repair (fw 0.3.3):** 3 connection failures in a row (HTTP -1) while WiFi is up: the cloud task
+  rebuilds both HTTP clients and restarts the command stream (frees their TLS state), at most every 2 min.
+- **Cloud watchdog (last resort, fw 0.3.1, fixed in 0.3.3):** 15 min since the LAST SUCCESSFUL cloud
+  contact while WiFi works (up 20 s+) and nobody on the setup page = stuck network/TLS stack: the hub
+  restarts (modules keep running). 0.3.1 counted "WiFi up and cloud down" continuously, so every WiFi
+  blip reset it; with the router dropping every 20-60 s it never fired (hub offline 36 min+, 2026-09-26). In a row the wait doubles
   (15, 30, 60, 120 min) so an internet outage doesn't cause restart loops; 10 min online resets it.
   `HUB_BOOT` arg1 = 1 marks these restarts (Events page: "restarted by the hub itself"). WiFi loss
   alone never restarts the hub.
@@ -113,6 +117,7 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   with LoadProhibited in streamTask after an offline period).
 - **Test builds:** `PLATFORMIO_BUILD_FLAGS="-DHUB_TEST_SHORT_TIMERS"` (minutes → seconds) and
   `-DHUB_TEST_FAKE_CLOUD_DOWN_MS=60000` (cloud "gone" 60 s after boot, WiFi up). Never flash them for use.
+  `-DHUB_TEST_FAIL_REQUESTS_FROM_MS=60000`: every cloud request fails for 90 s (self-repair test).
 - **LED:** slow blink = WiFi connecting, fast blink = cloud problem, solid = all good, double blink
   = all good and setup hotspot open.
 - Reported in `/hub`: `wifiSsid` (network) and `portal` (hotspot open), shown on the Dashboard.

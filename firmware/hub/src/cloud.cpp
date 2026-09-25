@@ -69,6 +69,12 @@ uint32_t nextAuthAttemptMs = 0;
 // idle connection in core 2.0.x, which stalled every write by ~10 s.)
 esp_http_client_handle_t authClient = nullptr;
 esp_http_client_handle_t dbClient = nullptr;
+// Self-repair: connection failures in a row (HTTP -1). At CLOUD_TLS_FAILS_RESET the cloud task rebuilds
+// both HTTP clients and restarts the stream, freeing whatever TLS state they hold (seen: mbedtls
+// -0x7F00 "alloc failed" for hours with 95 KB free). The hub restart stays the last resort (main.cpp).
+uint8_t connFails = 0;
+uint32_t lastClientResetMs = 0;
+volatile bool streamResetReq = false;
 std::string* respSink = nullptr;
 
 // ---------------- stream-task-only state ----------------
@@ -134,6 +140,12 @@ int request(const char* method, const String& u, const String& body, String* res
                                                               : HTTP_METHOD_PUT;
   std::string sink;
   int code = -1;
+#ifdef HUB_TEST_FAIL_REQUESTS_FROM_MS  // test build only: every request fails for 90 s (self-repair test)
+  if (millis() > HUB_TEST_FAIL_REQUESTS_FROM_MS && millis() < HUB_TEST_FAIL_REQUESTS_FROM_MS + 90000) {
+    if (connFails < 255) connFails++;
+    return -1;
+  }
+#endif
   for (int attempt = 0; attempt < 2; attempt++) {  // 2nd attempt = fresh connection if the kept-alive one died
     sink.clear();
     respSink = &sink;
@@ -150,6 +162,11 @@ int request(const char* method, const String& u, const String& body, String* res
     esp_http_client_close(c);
   }
   if (resp) *resp = sink.c_str();
+  if (code < 0) {
+    if (connFails < 255) connFails++;
+  } else {
+    connFails = 0;
+  }
 #ifdef CLOUD_DEBUG
   String p = u.substring(u.indexOf(".app/") + 4, u.indexOf('?') > 0 ? u.indexOf('?') : u.length());
   diag::printf("[DBG] %lu %s %s -> %d in %lu ms, heap %u (largest block %u)\n", (unsigned long)millis(), method,
@@ -565,7 +582,7 @@ void streamTask(void*) {
       continue;
     }
 
-    while (streaming && gen == tokenGen && WiFi.status() == WL_CONNECTED && !pollCmds) {
+    while (streaming && gen == tokenGen && WiFi.status() == WL_CONNECTED && !pollCmds && !streamResetReq) {
       diag::phase(diag::Task::Stream, "read");
       int n = streamTls.read(buf, sizeof(buf));  // blocks until data or timeout
       diag::phase(diag::Task::Stream, "parse");
@@ -600,6 +617,7 @@ void streamTask(void*) {
     }
     if (pollCmds) diag::printf("[NET] setup hotspot open: command stream paused, polling commands every second\n");
     closeStream();
+    streamResetReq = false;
     if ((int32_t)(millis() - streamRetryAtMs) >= 0) streamRetryAtMs = millis() + 2000;
   }
 }
@@ -639,8 +657,25 @@ void retention() {
   for (JsonPairConst kv : logs.as<JsonObjectConst>()) setNull((String("hubLog/") + kv.key().c_str()).c_str());
 }
 
+void resetClients() {
+  diag::printf("[NET] %u connection failures in a row: rebuilding the HTTP clients and the stream "
+               "(heap %u, largest block %u)\n",
+               connFails, ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+  esp_http_client_cleanup(authClient);
+  esp_http_client_cleanup(dbClient);
+  authClient = makeClient("https://identitytoolkit.googleapis.com/");
+  dbClient = makeClient((dbUrl + "/").c_str());
+  streamResetReq = true;  // the stream task closes its TLS connection and reconnects
+  connFails = 0;
+  lastClientResetMs = millis();
+  nextAuthAttemptMs = 0;  // try again right away with the fresh clients
+}
+
 void task(void*) {
   for (;;) {
+    if (connFails >= CLOUD_TLS_FAILS_RESET && WiFi.status() == WL_CONNECTED &&
+        (!lastClientResetMs || millis() - lastClientResetMs >= CLOUD_CLIENT_RESET_GAP_MS))
+      resetClients();
     if (WiFi.status() != WL_CONNECTED) {  // (the stream task notices WiFi loss on its own)
       setOnline(false);
       vTaskDelay(pdMS_TO_TICKS(500));

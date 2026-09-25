@@ -24,7 +24,7 @@ volatile uint32_t ringDropped = 0;
 // Important non-error lines worth keeping remotely (everything else stays on Serial only).
 const char* const KEEP[] = {"setup hotspot", "offline for", "back online", "WiFi '", "WiFi down",
                             "Firebase online", "Firebase offline", "reset reason", "restarting",
-                            "BOOT", "setup page:", "command stream closed", "listening for commands"};
+                            "BOOT", "setup page:", "rebuilding", "command stream closed", "listening for commands"};
 
 // ---------------- crash breadcrumbs (RTC RAM: kept across a crash restart, not power loss) ----------------
 constexpr uint32_t MAGIC = 0x44494147u;  // "DIAG"

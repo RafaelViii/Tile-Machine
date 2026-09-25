@@ -661,7 +661,7 @@ RTC_NOINIT_ATTR uint32_t rtcMagic;
 RTC_NOINIT_ATTR uint8_t stuckRestarts;  // cloud-watchdog restarts in a row
 RTC_NOINIT_ATTR uint8_t restartCause;   // 1 = cloud watchdog (sent as HUB_BOOT arg1)
 
-uint32_t cloudDownSinceMs = 0, cloudUpSinceMs = 0;
+uint32_t lastCloudOkMs = 0, cloudUpSinceMs = 0, wifiUpSinceMs = 0;  // lastCloudOkMs = boot until the first contact
 
 // Test build only (-DHUB_TEST_FAKE_CLOUD_DOWN_MS=60000): pretend the cloud is gone after that long while
 // WiFi stays up, to exercise the hotspot rules and the cloud watchdog. Normal builds: cloud::online().
@@ -673,24 +673,30 @@ bool cloudOk() {
 #endif
 }
 
-/** WiFi up but no cloud for too long = stuck TLS/network stack: restart (never for WiFi problems). */
+/**
+ * No cloud for too long while WiFi works = stuck TLS/network stack: restart. Counts from the LAST
+ * SUCCESSFUL cloud contact, not from "WiFi up and cloud down": fw 0.3.1 reset its timer on every WiFi
+ * blip, and with the router dropping every 20-60 s (2026-09-26) it never fired while the hub sat
+ * offline. Restarts only while WiFi is up (for 20 s+), so WiFi outages alone never restart the hub.
+ */
 void cloudWatchdog() {
   const uint32_t now = millis();
+  if (net::connected()) {
+    if (!wifiUpSinceMs) wifiUpSinceMs = now;
+  } else {
+    wifiUpSinceMs = 0;
+  }
   if (cloudOk()) {
-    cloudDownSinceMs = 0;
+    lastCloudOkMs = now;
     if (!cloudUpSinceMs) cloudUpSinceMs = now;
     if (stuckRestarts && now - cloudUpSinceMs >= CLOUD_STUCK_RESET_AFTER_MS) stuckRestarts = 0;
     return;
   }
   cloudUpSinceMs = 0;
-  if (!net::connected()) {  // WiFi problems are handled by reconnecting, never by restarting
-    cloudDownSinceMs = 0;
-    return;
-  }
-  if (!cloudDownSinceMs) cloudDownSinceMs = now;
+  if (!wifiUpSinceMs || now - wifiUpSinceMs < 20000) return;  // WiFi down or just back: give it a moment
   const uint32_t limit = CLOUD_STUCK_RESTART_MS << min<uint8_t>(stuckRestarts, 3);  // 15, 30, 60, 120 min
-  if (now - cloudDownSinceMs < limit || net::portalInUse()) return;
-  diag::printf("[ERROR] WiFi up but no cloud for %lu min (heap %u, largest block %u): restarting the hub "
+  if (now - lastCloudOkMs < limit || net::portalInUse()) return;
+  diag::printf("[ERROR] no cloud for %lu min while WiFi works (heap %u, largest block %u): restarting the hub "
                 "(modules keep running)\n",
                 (unsigned long)(limit / 60000), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
   stuckRestarts++;
