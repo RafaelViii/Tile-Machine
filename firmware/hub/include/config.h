@@ -5,7 +5,7 @@
 
 #define HUB_FW_MAJOR 0
 #define HUB_FW_MINOR 2
-#define HUB_FW_PATCH 0
+#define HUB_FW_PATCH 1
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
 // ---- Clock ----

@@ -8,6 +8,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <esp_sntp.h>
+#include <esp_system.h>
 #include <lwip/dns.h>
 #include <sys/time.h>
 
@@ -656,6 +657,22 @@ void diagnoseWifi() {
   WiFi.scanDelete();
 }
 
+const char* resetReasonName(esp_reset_reason_t r) {
+  switch (r) {
+    case ESP_RST_POWERON: return "power-on";
+    case ESP_RST_EXT: return "reset pin (EN)";
+    case ESP_RST_SW: return "software restart";
+    case ESP_RST_PANIC: return "CRASH (panic)";
+    case ESP_RST_INT_WDT: return "interrupt watchdog";
+    case ESP_RST_TASK_WDT: return "task watchdog";
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep sleep wake";
+    case ESP_RST_BROWNOUT: return "BROWNOUT (power dip)";
+    case ESP_RST_SDIO: return "SDIO";
+    default: return "unknown";
+  }
+}
+
 uint32_t wifiDownSinceMs = 0;
 uint32_t wifiLastRetryMs = 0;
 
@@ -743,7 +760,11 @@ void setup() {
   loadRegistry();
 
   cloud::begin();
-  cloud::pushEvent("hub", "HUB_BOOT");
+  // Why did we start? Logged + sent with HUB_BOOT (arg0 = esp_reset_reason_t) so unexpected
+  // restarts can be diagnosed from the web Events page.
+  const esp_reset_reason_t why = esp_reset_reason();
+  Serial.printf("[STATE] reset reason: %s (%d)\n", resetReasonName(why), (int)why);
+  cloud::pushEvent("hub", "HUB_BOOT", (int32_t)why);
   for (uint8_t id = 1; id < MODULE_ID_COUNT; id++) mods[id].presenceDirty = true;  // everyone offline until heard
   Serial.println("[NET] ESP-NOW ready, waiting for modules");
 }

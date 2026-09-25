@@ -18,6 +18,25 @@ interface Cursor {
 
 const PAGE_SIZES = [25, 50, 100] as const;
 
+// HUB_BOOT arg0 = esp_reset_reason_t (hub fw >= 0.2.1)
+const RESET_REASONS: Record<number, string> = {
+  1: 'power-on',
+  2: 'reset button (EN)',
+  3: 'software restart',
+  4: 'crash (panic)',
+  5: 'interrupt watchdog',
+  6: 'task watchdog',
+  7: 'watchdog',
+  8: 'deep-sleep wake',
+  9: 'brownout (power dip)',
+  10: 'SDIO',
+};
+
+function details(e: Row): string {
+  if (e.code === 'HUB_BOOT' && e.args && e.args[0]) return RESET_REASONS[e.args[0]] ?? `reset reason ${e.args[0]}`;
+  return e.args?.join(', ') ?? '';
+}
+
 function tone(code: string): 'green' | 'amber' | 'red' | 'zinc' | 'sky' {
   if (/ESTOP|JAM|FAULT|TIMEOUT|OFFLINE|NOT_ENOUGH/.test(code)) return 'red';
   if (/CANCELLED|REPLACED/.test(code)) return 'amber';
@@ -174,7 +193,7 @@ export function EventsPage() {
                       <td className="py-2 pr-4">
                         <Badge tone={tone(e.code)}>{humanize(e.code)}</Badge>
                       </td>
-                      <td className="py-2 font-mono text-xs text-zinc-500">{e.args?.join(', ') ?? ''}</td>
+                      <td className="py-2 font-mono text-xs text-zinc-500">{details(e)}</td>
                     </tr>
                   ))}
                 </tbody>
