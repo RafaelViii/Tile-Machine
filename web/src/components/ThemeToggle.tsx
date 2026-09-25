@@ -21,7 +21,7 @@ function applyTheme(t: Theme) {
     if (t === 'auto') localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, t);
   } catch {
-    /* private mode etc.: theme still applies for this visit */
+    /* private mode etc.: the theme still applies for this visit */
   }
 }
 
@@ -31,13 +31,13 @@ const OPTIONS: { value: Theme; label: string; title: string }[] = [
   { value: 'dark', label: 'Dark', title: 'Dark mode' },
 ];
 
-/** Auto / Light / Dark selector, remembered per browser (index.html applies it before first paint). */
+/** Auto / Light / Dark, remembered per browser (index.html applies it before first paint). */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   useEffect(() => applyTheme(theme), [theme]);
 
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-md bg-zinc-950 p-0.5 ring-1 ring-zinc-700 ring-inset">
+    <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-lg bg-zinc-900 p-0.5 ring-1 ring-zinc-800">
       {OPTIONS.map((o) => (
         <button
           key={o.value}
@@ -47,8 +47,8 @@ export function ThemeToggle() {
           title={o.title}
           onClick={() => setTheme(o.value)}
           className={cx(
-            'rounded-[4px] px-2 py-1 font-display text-xs font-semibold tracking-wider uppercase transition',
-            theme === o.value ? 'bg-zinc-700 text-zinc-50' : 'text-zinc-500 hover:text-zinc-300',
+            'rounded-md px-2.5 py-1 text-xs font-medium transition',
+            theme === o.value ? 'bg-zinc-700 text-zinc-50' : 'text-zinc-500 hover:text-zinc-200',
           )}
         >
           {o.label}

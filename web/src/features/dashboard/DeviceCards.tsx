@@ -1,34 +1,69 @@
-import type { ComponentType, SVGProps } from 'react';
+import { useState, type ComponentType, type ReactNode, type SVGProps } from 'react';
 import { Link } from 'react-router';
 import { ContainerIcon, HotpressIcon, HubIcon, ShredderIcon } from '../../components/icons';
-import { Badge, Card, CardTitle, Lamp, Stat } from '../../components/ui';
+import { Badge, Card, CardTitle, Stat, StatusDot, cx } from '../../components/ui';
 import { ago, faultList, uptime } from '../../shared/format';
 import { useMachine, type MachineStatus } from '../../shared/machine';
 import type { ModuleId } from '../../shared/types/rtdb';
 
 type Tone = 'green' | 'amber' | 'red' | 'zinc' | 'sky';
 
-function StatusBadge({ state, label }: { state: 'on' | 'off' | 'warn' | 'fault'; label: string }) {
-  const tone: Tone = state === 'on' ? 'green' : state === 'warn' ? 'amber' : state === 'fault' ? 'red' : 'zinc';
+interface RowProps {
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  name: string;
+  esp: string;
+  online: boolean;
+  status: { text: string; tone: Tone };
+  lastSeen: string | null;
+  issue: string | null; // shown collapsed only when something needs attention
+  children: ReactNode; // details, shown when expanded
+}
+
+function Chevron({ open }: { open: boolean }) {
   return (
-    <Badge tone={tone}>
-      <Lamp state={state} /> {label}
-    </Badge>
+    <svg
+      viewBox="0 0 20 20"
+      className={cx('h-4 w-4 shrink-0 text-zinc-500 transition-transform', open && 'rotate-180')}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden
+    >
+      <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-function DeviceTitle({ Icon, name, esp }: { Icon: ComponentType<SVGProps<SVGSVGElement>>; name: string; esp: string }) {
+function DeviceRow({ Icon, name, esp, online, status, lastSeen, issue, children }: RowProps) {
+  const [open, setOpen] = useState(false);
   return (
-    <span className="flex items-center gap-2">
-      <Icon className="h-4 w-4 text-zinc-400" />
-      {name}
-      <span className="font-mono text-xs font-normal tracking-normal text-zinc-500 normal-case">· {esp}</span>
-    </span>
+    <li>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-2 py-3 text-left transition hover:bg-zinc-800/40"
+      >
+        <StatusDot on={online} />
+        <Icon className="h-5 w-5 shrink-0 text-zinc-400" />
+        <span className="font-medium">{name}</span>
+        <span className="font-mono text-xs text-zinc-500">{esp}</span>
+        <span className="ml-auto flex items-center gap-2">
+          {issue && <Badge tone="amber">⚠ {issue}</Badge>}
+          <Badge tone={status.tone}>{status.text}</Badge>
+          {lastSeen && <span className="hidden w-20 text-right text-xs text-zinc-500 sm:inline">{lastSeen}</span>}
+          <Chevron open={open} />
+        </span>
+      </button>
+      {open && <div className="px-2 pt-1 pb-4">{children}</div>}
+    </li>
   );
 }
 
-function HubCard({ m }: { m: MachineStatus }) {
+function hubRow(m: MachineStatus) {
   const { hub, hubOnline, now } = m;
+  const weak = hubOnline && typeof hub?.wifiRssi === 'number' && hub.wifiRssi < -80;
+  const rtcIssue = hub?.rtc === 'lost-power' ? 'Clock battery / not set' : hub?.rtc === 'missing' ? 'Clock (RTC) missing' : null;
   const clock =
     hub?.rtc === 'ok'
       ? `RTC ok · ${hub.timeSource === 'ntp' ? 'internet' : hub.timeSource === 'rtc' ? 'RTC only' : '—'}`
@@ -37,38 +72,39 @@ function HubCard({ m }: { m: MachineStatus }) {
         : hub?.rtc === 'missing'
           ? 'RTC missing'
           : '—';
+
   return (
-    <Card>
-      <CardTitle
-        right={<StatusBadge state={hubOnline ? 'on' : hub ? 'fault' : 'off'} label={hubOnline ? 'Online' : hub ? 'Offline' : 'Never seen'} />}
-      >
-        <DeviceTitle Icon={HubIcon} name="Main hub" esp="esp0" />
-      </CardTitle>
+    <DeviceRow
+      key="hub"
+      Icon={HubIcon}
+      name="Main hub"
+      esp="esp0"
+      online={hubOnline}
+      status={hubOnline ? { text: 'Online', tone: 'green' } : hub ? { text: 'Offline', tone: 'red' } : { text: 'Never seen', tone: 'zinc' }}
+      lastSeen={hub?.lastSeen ? ago(hub.lastSeen, now) : null}
+      issue={rtcIssue ?? (weak ? 'Weak WiFi' : null)}
+    >
       {!hub ? (
-        <p className="text-sm text-zinc-400">
-          The hub hasn't reported yet. Once it's on WiFi, it shows up here and the modules start lighting up.
-        </p>
+        <p className="text-sm text-zinc-400">The hub hasn't reported yet. Once it's on WiFi it appears here.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <Stat label="Last seen" value={ago(hub.lastSeen, now)} tone={hubOnline ? 'green' : 'red'} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Up since" value={hub.bootAt ? uptime(Math.round((now - hub.bootAt) / 1000)) : '—'} />
           <Stat label="IP" value={hub.ip ?? '—'} />
-          <Stat label="Firmware" value={hub.fw ?? '—'} />
-          <Stat label="WiFi channel" value={hub.wifiChannel ?? '—'} />
-          <Stat label="WiFi signal" value={hub.wifiRssi !== undefined ? `${hub.wifiRssi} dBm` : '—'} />
           <Stat
-            label="Clock (DS3231)"
-            value={clock}
-            tone={hub.rtc === 'ok' ? 'green' : hub.rtc ? 'amber' : undefined}
+            label="WiFi"
+            value={hub.wifiRssi !== undefined ? `ch ${hub.wifiChannel ?? '—'} · ${hub.wifiRssi} dBm` : '—'}
+            tone={weak ? 'amber' : undefined}
           />
+          <Stat label="Clock" value={clock} tone={hub.rtc === 'ok' ? 'green' : hub.rtc ? 'amber' : undefined} />
+          <Stat label="Firmware" value={hub.fw ?? '—'} />
           <Stat label="Protocol" value={hub.protocolVersion !== undefined ? `v${hub.protocolVersion}` : '—'} />
         </div>
       )}
-    </Card>
+    </DeviceRow>
   );
 }
 
-function configSync(m: MachineStatus, id: ModuleId): { text: string; tone?: Tone } {
+function configSync(m: MachineStatus, id: ModuleId): { text: string; tone?: Tone; problem?: string } {
   const node = m.modules[id].node;
   const cfg = node?.config;
   const applied = node?.configApplied;
@@ -77,88 +113,95 @@ function configSync(m: MachineStatus, id: ModuleId): { text: string; tone?: Tone
     return { text: v ? `Board v${v}` : 'Defaults' };
   }
   if (applied?.version === cfg.version) {
-    if (applied.result === 'rejected') return { text: `Rejected v${cfg.version}`, tone: 'red' };
+    if (applied.result === 'rejected') return { text: `Rejected v${cfg.version}`, tone: 'red', problem: 'Settings rejected' };
     if (applied.result === 'queued') return { text: `Queued v${cfg.version}`, tone: 'amber' };
     return { text: `Synced v${cfg.version}`, tone: 'green' };
   }
   return { text: `Pending v${cfg.version}`, tone: 'amber' };
 }
 
-function ModuleCard({
-  m,
-  id,
-  name,
-  esp,
-  Icon,
-  to,
-}: {
-  m: MachineStatus;
-  id: ModuleId;
-  name: string;
-  esp: string;
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  to: string;
-}) {
+function moduleRow(
+  m: MachineStatus,
+  id: ModuleId,
+  name: string,
+  esp: string,
+  Icon: ComponentType<SVGProps<SVGSVGElement>>,
+  to: string,
+) {
   const { node, connected } = m.modules[id];
-  const faults = faultList(id, node?.state?.faults);
   const everPaired = !!node?.info;
-  const lamp = connected ? (faults.length ? 'warn' : 'on') : everPaired ? 'fault' : 'off';
-  const label = connected ? (faults.length ? 'Online · fault' : 'Online') : everPaired ? 'Offline' : 'Not paired yet';
+  const faults = connected ? faultList(id, node?.state?.faults) : [];
+  const interlock = connected && !!node?.state?.interlock;
   const sync = configSync(m, id);
+  const issue = faults.length
+    ? faults.length === 1
+      ? faults[0]
+      : `${faults.length} faults`
+    : interlock
+      ? 'Set switch to OFF'
+      : (sync.problem ?? null);
 
   return (
-    <Card>
-      <CardTitle right={<StatusBadge state={lamp} label={label} />}>
-        <Link to={to} className="hover:text-hazard">
-          <DeviceTitle Icon={Icon} name={name} esp={esp} />
-        </Link>
-      </CardTitle>
+    <DeviceRow
+      key={id}
+      Icon={Icon}
+      name={name}
+      esp={esp}
+      online={connected}
+      status={
+        connected
+          ? { text: 'Online', tone: 'green' }
+          : everPaired
+            ? { text: 'Offline', tone: 'red' }
+            : { text: 'Not paired yet', tone: 'zinc' }
+      }
+      lastSeen={everPaired ? ago(node?.presence?.lastSeen, m.now) : null}
+      issue={issue}
+    >
       {!everPaired ? (
         <p className="text-sm text-zinc-400">
           Flash this ESP32 and power it on near the hub. It pairs by itself and appears here. No buttons needed.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          <Stat label="Last seen" value={ago(node?.presence?.lastSeen, m.now)} tone={connected ? 'green' : 'red'} />
-          <Stat label="Uptime" value={connected ? uptime(node?.state?.uptimeS) : '—'} />
-          <Stat label="MAC" value={node?.info?.mac ?? '—'} />
-          <Stat label="Firmware" value={node?.info?.fw ?? '—'} />
-          <Stat label="Linked" value={ago(node?.info?.pairedAt, m.now)} />
-          <Stat label="Config" value={sync.text} tone={sync.tone} />
-          <Stat
-            label="Faults"
-            value={connected ? (faults.length ? faults.join(', ') : 'None') : '—'}
-            tone={connected ? (faults.length ? 'amber' : 'green') : undefined}
-          />
-          <Stat
-            label="Safety"
-            value={connected ? (node?.state?.interlock ? 'Interlock: set switch OFF' : 'Normal') : '—'}
-            tone={connected ? (node?.state?.interlock ? 'amber' : 'green') : undefined}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Uptime" value={connected ? uptime(node?.state?.uptimeS) : '—'} />
+            <Stat label="Firmware" value={node?.info?.fw ?? '—'} />
+            <Stat label="Settings" value={sync.text} tone={sync.tone} />
+            <Stat
+              label="Faults"
+              value={connected ? (faults.length ? faults.join(', ') : 'None') : '—'}
+              tone={connected ? (faults.length ? 'amber' : 'green') : undefined}
+            />
+            <Stat label="MAC" value={node?.info?.mac ?? '—'} />
+            <Stat label="Linked" value={ago(node?.info?.pairedAt, m.now)} />
+          </div>
+          <Link to={to} className="mt-3 inline-block text-sm font-medium text-emerald-400 hover:underline">
+            Open {name.split(' ·')[0]} page →
+          </Link>
+        </>
       )}
-    </Card>
+    </DeviceRow>
   );
 }
 
-/** Every ESP32 in the system, with its connection and health. */
+/** Every ESP32 in the system: one compact line each, details on click. */
 export function DeviceCards() {
   const m = useMachine();
   const online =
     (m.hubOnline ? 1 : 0) + (['shredder', 'containing', 'hotpress'] as const).filter((id) => m.modules[id].connected).length;
 
   return (
-    <section>
-      <div className="mb-3 flex items-end justify-between gap-2">
-        <h2 className="font-display text-xl font-bold tracking-wider uppercase">Devices</h2>
-        <span className="font-mono text-xs text-zinc-500">{online} / 4 ESP32 online</span>
-      </div>
-      <div className="grid gap-4">
-        <HubCard m={m} />
-        <ModuleCard m={m} id="shredder" name="Shredder" esp="esp1" Icon={ShredderIcon} to="/shredder" />
-        <ModuleCard m={m} id="containing" name="Containing" esp="esp2" Icon={ContainerIcon} to="/containing" />
-        <ModuleCard m={m} id="hotpress" name="Hot Press · Designing · Curing" esp="esp3" Icon={HotpressIcon} to="/hotpress" />
-      </div>
-    </section>
+    <Card>
+      <CardTitle right={<span className="text-xs text-zinc-500">{online} / 4 online · click a device for details</span>}>
+        Devices
+      </CardTitle>
+      <ul className="-mx-2 divide-y divide-zinc-800">
+        {hubRow(m)}
+        {moduleRow(m, 'shredder', 'Shredder', 'esp1', ShredderIcon, '/shredder')}
+        {moduleRow(m, 'containing', 'Containing', 'esp2', ContainerIcon, '/containing')}
+        {moduleRow(m, 'hotpress', 'Hot Press · Designing · Curing', 'esp3', HotpressIcon, '/hotpress')}
+      </ul>
+    </Card>
   );
 }

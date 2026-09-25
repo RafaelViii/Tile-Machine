@@ -24,7 +24,6 @@ export function CommandButton({
   disabledReason,
   children,
   className,
-  floatingStatus = false,
 }: {
   moduleId: ModuleId | 'all';
   type: CommandType;
@@ -35,12 +34,10 @@ export function CommandButton({
   disabledReason?: string;
   children: ReactNode;
   className?: string;
-  /** Show the status as a label floating under the button (for tight spots like the header). */
-  floatingStatus?: boolean;
 }) {
   const { status, error, send } = useCommand(moduleId);
   return (
-    <div className={floatingStatus ? 'relative' : 'flex flex-col items-start gap-1'}>
+    <div className="flex flex-col items-start gap-1">
       <Button
         variant={variant}
         disabled={disabled || status === 'sending'}
@@ -52,17 +49,13 @@ export function CommandButton({
       </Button>
       {status && (
         <span
-          className={[
-            'font-mono text-[11px]',
-            floatingStatus && 'absolute top-full right-0 mt-2 rounded-sm bg-zinc-900 px-1.5 py-0.5 whitespace-nowrap ring-1 ring-zinc-700',
+          className={
             status === 'done'
-              ? 'text-emerald-400'
+              ? 'text-[11px] text-emerald-400'
               : status === 'failed' || status === 'expired' || status === 'error'
-                ? 'text-red-400'
-                : 'text-zinc-400',
-          ]
-            .filter(Boolean)
-            .join(' ')}
+                ? 'text-[11px] text-red-400'
+                : 'text-[11px] text-zinc-400'
+          }
         >
           {statusText[status]}
           {error ? `: ${error}` : ''}
