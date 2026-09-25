@@ -78,6 +78,26 @@ export function ShredderPage() {
             max={L.irDebounceMs[1]}
             unit="ms"
           />
+          <NumberField
+            label="3-way switch debounce"
+            hint="A new switch position only counts after it stays steady this long. Raise it if the screen jumps between modes"
+            value={d.switchDebounceMs}
+            onChange={(v) => cfg.update((c) => ({ ...c, switchDebounceMs: v }))}
+            min={L.switchDebounceMs[0]}
+            max={L.switchDebounceMs[1]}
+            step={10}
+            unit="ms"
+          />
+          <NumberField
+            label="START / STOP button debounce"
+            hint="Filters button chatter. Kept short so STOP always reacts fast"
+            value={d.buttonDebounceMs}
+            onChange={(v) => cfg.update((c) => ({ ...c, buttonDebounceMs: v }))}
+            min={L.buttonDebounceMs[0]}
+            max={L.buttonDebounceMs[1]}
+            step={5}
+            unit="ms"
+          />
           <label className="block sm:col-span-2">
             <span className="text-xs font-medium text-zinc-400">Buzzer volume · {d.buzzerVolumePct}%</span>
             <input

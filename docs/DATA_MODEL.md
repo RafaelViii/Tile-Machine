@@ -104,7 +104,8 @@ while the hub doesn't know the time.
 ```jsonc
 // shredder
 { "version": 1, "autoStartDelayMs": 5000, "autoEmptyStopDelayMs": 1500,
-  "manualConfirmTimeoutMs": 15000, "irDebounceMs": 200, "buzzerVolumePct": 100 }
+  "manualConfirmTimeoutMs": 15000, "irDebounceMs": 200, "buzzerVolumePct": 100,
+  "switchDebounceMs": 250, "buttonDebounceMs": 50 }
 
 // containing
 { "version": 1,

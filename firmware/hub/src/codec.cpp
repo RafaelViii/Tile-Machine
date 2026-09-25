@@ -112,6 +112,8 @@ bool configFromJson(ModuleId id, JsonObjectConst in, uint8_t* out, size_t& len) 
       c.manualConfirmTimeoutMs = u16(in["manualConfirmTimeoutMs"], c.manualConfirmTimeoutMs);
       c.irDebounceMs = u16(in["irDebounceMs"], c.irDebounceMs);
       c.buzzerVolumePct = u8(in["buzzerVolumePct"], c.buzzerVolumePct);
+      c.switchDebounceMs = u16(in["switchDebounceMs"], c.switchDebounceMs);
+      c.buttonDebounceMs = u16(in["buttonDebounceMs"], c.buttonDebounceMs);
       memcpy(out, &c, sizeof(c));
       len = sizeof(c);
       return true;

@@ -142,8 +142,12 @@ struct __attribute__((packed)) ConfigShredder {
   uint16_t manualConfirmTimeoutMs;// default 15000 (range 3000..60000)
   uint16_t irDebounceMs;          // default 200   (range 20..2000)
   uint8_t  buzzerVolumePct;       // default 100   (range 0..100; 0 = mute except E-STOP)
+  uint16_t switchDebounceMs;      // default 250   (range 20..2000)  3-way switch filter window
+  uint16_t buttonDebounceMs;      // default 50    (range 10..500)   START/STOP filter window (STOP stays fast)
 };
 ```
+(17 bytes. The two debounce fields were added after the hardware test showed the switch contacts
+dropping out for >100 ms with the weak internal pull-ups. Hub and shredder firmware must match.)
 
 **Containing**
 ```c

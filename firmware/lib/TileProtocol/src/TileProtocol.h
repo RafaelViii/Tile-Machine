@@ -279,6 +279,8 @@ struct ConfigShredder {
   uint16_t manualConfirmTimeoutMs;
   uint16_t irDebounceMs;
   uint8_t buzzerVolumePct;
+  uint16_t switchDebounceMs;  // 3-way switch contacts, integrating filter window (20..2000)
+  uint16_t buttonDebounceMs;  // START / STOP, integrating filter window (10..500: STOP stays fast)
 };
 
 struct RawContainerCfg {
@@ -326,6 +328,7 @@ struct Packet {
 // ---------- Size guarantees ----------
 static_assert(sizeof(MsgHeader) == 12, "header must be 12 bytes");
 static_assert(sizeof(TimePayload) == 6, "TimePayload layout changed");
+static_assert(sizeof(ConfigShredder) == 17, "ConfigShredder layout changed (docs/PROTOCOL.md §6)");
 static_assert(sizeof(ConfigHotpress) == 9, "ConfigHotpress layout changed (docs/PROTOCOL.md §6)");
 static_assert(sizeof(StatusCommon) == 11, "StatusCommon layout changed");
 static_assert(sizeof(RawContainerCfg) == 31, "RawContainerCfg layout changed");

@@ -19,6 +19,7 @@ class Button {
   /** True exactly once per (filtered) press. */
   bool pressed() { return f_.update(raw()) && f_.value(); }
   bool isDown() const { return f_.value(); }
+  void setDebounce(uint32_t ms) { f_.setWindow(ms); }
 
  private:
   bool raw() const { return (digitalRead(pin_) == HIGH) == activeHigh_; }
@@ -50,6 +51,10 @@ class ModeSwitch {
   }
   tile::ShredderMode position() const { return pos_; }
   bool wiringFault() const { return fa_.value() && fm_.value(); }
+  void setDebounce(uint32_t ms) {
+    fa_.setWindow(ms);
+    fm_.setWindow(ms);
+  }
 
  private:
   tile::ShredderMode compute() const {

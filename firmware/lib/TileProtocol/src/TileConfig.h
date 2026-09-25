@@ -20,6 +20,8 @@ inline ConfigShredder defaultShredderConfig() {
   c.manualConfirmTimeoutMs = 15000;
   c.irDebounceMs = 200;
   c.buzzerVolumePct = 100;
+  c.switchDebounceMs = 250;  // real switch contacts drop out for >100 ms (weak internal pull-ups)
+  c.buttonDebounceMs = 50;
   return c;
 }
 
@@ -27,7 +29,8 @@ inline bool validShredderConfig(const ConfigShredder& c) {
   return inRange<uint16_t>(c.autoStartDelayMs, 2000, 30000) &&
          inRange<uint16_t>(c.autoEmptyStopDelayMs, 0, 10000) &&
          inRange<uint16_t>(c.manualConfirmTimeoutMs, 3000, 60000) &&
-         inRange<uint16_t>(c.irDebounceMs, 20, 2000) && c.buzzerVolumePct <= 100;
+         inRange<uint16_t>(c.irDebounceMs, 20, 2000) && c.buzzerVolumePct <= 100 &&
+         inRange<uint16_t>(c.switchDebounceMs, 20, 2000) && inRange<uint16_t>(c.buttonDebounceMs, 10, 500);
 }
 
 // ---------- Containing ----------

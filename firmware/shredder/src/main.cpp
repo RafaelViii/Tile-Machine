@@ -46,7 +46,9 @@ void loadConfig() {
   Preferences p;
   p.begin("shredder", false);
   ConfigShredder c;
-  if (p.isKey("cfg") && p.getBytes("cfg", &c, sizeof(c)) == sizeof(c) && validShredderConfig(c)) {
+  // (an older, smaller saved config is ignored: defaults until the hub sends the current one)
+  if (p.isKey("cfg") && p.getBytesLength("cfg") == sizeof(c) && p.getBytes("cfg", &c, sizeof(c)) == sizeof(c) &&
+      validShredderConfig(c)) {
     cfg = c;
     Serial.printf("[STATE] config v%u loaded from flash\n", (unsigned)cfg.configVersion);
   } else {
@@ -57,6 +59,9 @@ void loadConfig() {
 
 void useConfig() {
   ir.setDebounce(cfg.irDebounceMs);
+  modeSw.setDebounce(cfg.switchDebounceMs);
+  startBtn.setDebounce(cfg.buttonDebounceMs);
+  stopBtn.setDebounce(cfg.buttonDebounceMs);
   buzzer.setVolume(cfg.buzzerVolumePct);
   hubLink.setConfigVersion(cfg.configVersion);
 }
@@ -65,9 +70,11 @@ void applyConfig(const ConfigShredder& c) {
   cfg = c;
   useConfig();
   saveConfig();
-  Serial.printf("[STATE] config v%u applied: start delay %u ms, empty stop %u ms, confirm %u ms, IR %u ms, vol %u%%\n",
+  Serial.printf("[STATE] config v%u applied: start delay %u ms, empty stop %u ms, confirm %u ms, IR %u ms, "
+                "switch %u ms, buttons %u ms, vol %u%%\n",
                 (unsigned)cfg.configVersion, cfg.autoStartDelayMs, cfg.autoEmptyStopDelayMs,
-                cfg.manualConfirmTimeoutMs, cfg.irDebounceMs, cfg.buzzerVolumePct);
+                cfg.manualConfirmTimeoutMs, cfg.irDebounceMs, cfg.switchDebounceMs, cfg.buttonDebounceMs,
+                cfg.buzzerVolumePct);
   hubLink.sendEvent(EventCode::CONFIG_APPLIED, (int32_t)cfg.configVersion);
 }
 

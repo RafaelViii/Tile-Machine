@@ -89,6 +89,8 @@ export interface ShredderConfig {
   manualConfirmTimeoutMs: number;
   irDebounceMs: number;
   buzzerVolumePct: number;
+  switchDebounceMs: number; // 3-way switch contacts
+  buttonDebounceMs: number; // START / STOP
 }
 
 export type RawMode = 'LOADCELL' | 'TIME';

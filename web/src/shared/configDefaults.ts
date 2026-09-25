@@ -15,6 +15,8 @@ export const LIMITS = {
     manualConfirmTimeoutMs: [3000, 60000],
     irDebounceMs: [20, 2000],
     buzzerVolumePct: [0, 100],
+    switchDebounceMs: [20, 2000],
+    buttonDebounceMs: [10, 500],
   },
   containing: {
     timeTableMs: [1000, 600000],
@@ -38,6 +40,8 @@ export const DEFAULT_SHREDDER: ShredderConfig = {
   manualConfirmTimeoutMs: 15000,
   irDebounceMs: 200,
   buzzerVolumePct: 100,
+  switchDebounceMs: 250,
+  buttonDebounceMs: 50,
 };
 
 export const DEFAULT_CONTAINING: ContainingConfig = {
