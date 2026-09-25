@@ -34,7 +34,11 @@ const RESET_REASONS: Record<number, string> = {
 };
 
 function details(e: Row): string {
-  if (e.code === 'HUB_BOOT' && e.args && e.args[0]) return RESET_REASONS[e.args[0]] ?? `reset reason ${e.args[0]}`;
+  if (e.code === 'HUB_BOOT' && e.args && e.args[0]) {
+    // arg1 = 1: restarted by the hub's cloud watchdog (WiFi up but no cloud for 15+ min, fw 0.3.1)
+    if (e.args[1] === 1) return 'restarted by the hub itself: WiFi was up but the cloud unreachable for a long time';
+    return RESET_REASONS[e.args[0]] ?? `reset reason ${e.args[0]}`;
+  }
   // Most events carry [0, 0] (no extra data): show nothing rather than "0, 0".
   if (!e.args || e.args.every((a) => !a)) return '';
   return e.args.join(', ');

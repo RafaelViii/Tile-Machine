@@ -16,6 +16,8 @@ void loop(bool cloudOnline);
 
 bool connected();
 bool portalOpen();
+/** A phone/PC is connected to the setup hotspot right now. */
+bool portalInUse();
 /** Open (or keep open) the setup hotspot. */
 void openPortal(PortalReason why);
 /** SSID of the network the hub is on right now ("" when not connected). */

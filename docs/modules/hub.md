@@ -88,7 +88,8 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
 |---|---|
 | Every boot (power-on, EN/reset button) | opens, closes after 3 min without use |
 | Short BOOT press (< 1.5 s) | opens without restarting, same 3-min rule |
-| Offline for 30 s (no WiFi, or WiFi but no cloud) | opens and stays open while offline; once back online the 3-min rule applies |
+| Offline for 30 s, WiFi down | opens and stays open until WiFi is back; then the 3-min rule applies |
+| Offline for 30 s, WiFi up but no cloud | opens, closes after 3 min without use, then stays closed 10 min (fw 0.3.1) |
 
   "Use" = any request from the setup page (it polls every 2 s while open) or a phone joining.
 - **Setup page:** status, saved networks (forget), scan, connect to a new network. A new network is
@@ -99,6 +100,19 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   hub only retries the last network on that channel, so the hotspot doesn't jump and drop the phone.
   Connecting to a network on another channel moves the hotspot: the phone rejoins, and the modules
   re-scan and re-pair by themselves.
+- **Why the difference (fw 0.3.1):** the hotspot uses ~46 KB. After hours of running, with the heap
+  fragmented, the TLS connection to Firebase could no longer be set up next to it (mbedtls -0x7F00,
+  out of memory), so fw 0.3.0 stayed "offline with the hotspot open" for 5 h. Found 2026-09-26.
+- **Cloud watchdog (last resort, fw 0.3.1):** WiFi up but no cloud for 15 min and nobody on the setup
+  page = stuck network/TLS stack: the hub restarts (modules keep running). In a row the wait doubles
+  (15, 30, 60, 120 min) so an internet outage doesn't cause restart loops; 10 min online resets it.
+  `HUB_BOOT` arg1 = 1 marks these restarts (Events page: "restarted by the hub itself"). WiFi loss
+  alone never restarts the hub.
+- **Stream robustness (fw 0.3.1):** the first `data:` line of the /commands stream (whole tree) is moved,
+  never copied; if the heap can't hold it the stream reconnects instead of crashing (fw 0.3.0 crashed
+  with LoadProhibited in streamTask after an offline period).
+- **Test builds:** `PLATFORMIO_BUILD_FLAGS="-DHUB_TEST_SHORT_TIMERS"` (minutes → seconds) and
+  `-DHUB_TEST_FAKE_CLOUD_DOWN_MS=60000` (cloud "gone" 60 s after boot, WiFi up). Never flash them for use.
 - **LED:** slow blink = WiFi connecting, fast blink = cloud problem, solid = all good, double blink
   = all good and setup hotspot open.
 - Reported in `/hub`: `wifiSsid` (network) and `portal` (hotspot open), shown on the Dashboard.

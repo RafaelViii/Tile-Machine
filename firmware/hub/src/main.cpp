@@ -642,6 +642,51 @@ const char* resetReasonName(esp_reset_reason_t r) {
   }
 }
 
+// ---------------- cloud watchdog (last resort) ----------------
+// Survive a software restart (not power loss): why we restarted, and how many times in a row.
+constexpr uint32_t RTC_MAGIC = 0x7443574Du;
+RTC_NOINIT_ATTR uint32_t rtcMagic;
+RTC_NOINIT_ATTR uint8_t stuckRestarts;  // cloud-watchdog restarts in a row
+RTC_NOINIT_ATTR uint8_t restartCause;   // 1 = cloud watchdog (sent as HUB_BOOT arg1)
+
+uint32_t cloudDownSinceMs = 0, cloudUpSinceMs = 0;
+
+// Test build only (-DHUB_TEST_FAKE_CLOUD_DOWN_MS=60000): pretend the cloud is gone after that long while
+// WiFi stays up, to exercise the hotspot rules and the cloud watchdog. Normal builds: cloud::online().
+bool cloudOk() {
+#ifdef HUB_TEST_FAKE_CLOUD_DOWN_MS
+  return cloud::online() && millis() < HUB_TEST_FAKE_CLOUD_DOWN_MS;
+#else
+  return cloud::online();
+#endif
+}
+
+/** WiFi up but no cloud for too long = stuck TLS/network stack: restart (never for WiFi problems). */
+void cloudWatchdog() {
+  const uint32_t now = millis();
+  if (cloudOk()) {
+    cloudDownSinceMs = 0;
+    if (!cloudUpSinceMs) cloudUpSinceMs = now;
+    if (stuckRestarts && now - cloudUpSinceMs >= CLOUD_STUCK_RESET_AFTER_MS) stuckRestarts = 0;
+    return;
+  }
+  cloudUpSinceMs = 0;
+  if (!net::connected()) {  // WiFi problems are handled by reconnecting, never by restarting
+    cloudDownSinceMs = 0;
+    return;
+  }
+  if (!cloudDownSinceMs) cloudDownSinceMs = now;
+  const uint32_t limit = CLOUD_STUCK_RESTART_MS << min<uint8_t>(stuckRestarts, 3);  // 15, 30, 60, 120 min
+  if (now - cloudDownSinceMs < limit || net::portalInUse()) return;
+  Serial.printf("[ERROR] WiFi up but no cloud for %lu min (heap %u, largest block %u): restarting the hub "
+                "(modules keep running)\n",
+                (unsigned long)(limit / 60000), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+  stuckRestarts++;
+  restartCause = 1;
+  delay(200);  // setup-style exception: let the log line out before restarting
+  ESP.restart();
+}
+
 uint32_t lastPresenceMs = 0, lastPushMs = 0, lastReportMs = 0;
 
 void printReport() {
@@ -698,8 +743,16 @@ void setup() {
   // Why did we start? Logged + sent with HUB_BOOT (arg0 = esp_reset_reason_t) so unexpected
   // restarts can be diagnosed from the web Events page.
   const esp_reset_reason_t why = esp_reset_reason();
-  Serial.printf("[STATE] reset reason: %s (%d)\n", resetReasonName(why), (int)why);
-  cloud::pushEvent("hub", "HUB_BOOT", (int32_t)why);
+  if (rtcMagic != RTC_MAGIC || why == ESP_RST_POWERON || why == ESP_RST_BROWNOUT) {  // RTC RAM not kept
+    rtcMagic = RTC_MAGIC;
+    stuckRestarts = 0;
+    restartCause = 0;
+  }
+  const uint8_t cause = why == ESP_RST_SW ? restartCause : 0;
+  restartCause = 0;
+  Serial.printf("[STATE] reset reason: %s (%d)%s\n", resetReasonName(why), (int)why,
+                cause == 1 ? ", by the cloud watchdog" : "");
+  cloud::pushEvent("hub", "HUB_BOOT", (int32_t)why, cause);
   for (uint8_t id = 1; id < MODULE_ID_COUNT; id++) mods[id].presenceDirty = true;  // everyone offline until heard
   Serial.println("[NET] ESP-NOW ready, waiting for modules");
 }
@@ -722,8 +775,9 @@ void loop() {
     lastPushMs = now;
     pushConfigs();
   }
-  net::loop(cloud::online());
+  net::loop(cloudOk());
   cloud::setPollCommands(net::portalOpen());  // the hotspot needs the stream's memory
+  cloudWatchdog();
   serviceClock();
   serviceTimeBroadcast();
   syncCloud();

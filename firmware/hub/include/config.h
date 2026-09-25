@@ -5,7 +5,7 @@
 
 #define HUB_FW_MAJOR 0
 #define HUB_FW_MINOR 3
-#define HUB_FW_PATCH 0
+#define HUB_FW_PATCH 1
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
 // ---- Clock ----
@@ -31,9 +31,28 @@ constexpr uint32_t WIFI_TRIAL_TIMEOUT_MS = 20000;   // a network typed in the se
 
 // Setup hotspot "TileHub-XXXX" (password PORTAL_PASSWORD in secrets.h): opens at every boot and on a
 // short BOOT press, closes after 3 min without use. Opens by itself after 30 s offline (no WiFi or no
-// cloud) and then stays open until the hub is back online.
+// cloud). With WiFi down it stays open until WiFi is back; with WiFi up (only the cloud missing) it closes
+// after 3 min without use and doesn't reopen for 10 min (its memory is needed to reconnect the cloud).
+#ifndef HUB_TEST_SHORT_TIMERS
 constexpr uint32_t PORTAL_IDLE_CLOSE_MS = 3UL * 60 * 1000;
 constexpr uint32_t PORTAL_OFFLINE_AFTER_MS = 30000;
+constexpr uint32_t PORTAL_CLOUD_COOLDOWN_MS = 10UL * 60 * 1000;  // WiFi up, no cloud: don't reopen for this long
+#else  // test build only (PLATFORMIO_BUILD_FLAGS=-DHUB_TEST_SHORT_TIMERS): same logic, minutes become seconds
+constexpr uint32_t PORTAL_IDLE_CLOSE_MS = 60000;
+constexpr uint32_t PORTAL_OFFLINE_AFTER_MS = 8000;
+constexpr uint32_t PORTAL_CLOUD_COOLDOWN_MS = 60000;
+#endif
+
+// Last resort: WiFi up but the cloud unreachable this long (and nobody on the setup page) = the TLS/network
+// stack is stuck (seen: -0x7F00 TLS alloc failures after hours) -> restart. Doubles each time in a row
+// (15 -> 30 -> 60 -> 120 min) so an internet outage doesn't restart the hub over and over. Modules keep running.
+#ifndef HUB_TEST_SHORT_TIMERS
+constexpr uint32_t CLOUD_STUCK_RESTART_MS = 15UL * 60 * 1000;
+constexpr uint32_t CLOUD_STUCK_RESET_AFTER_MS = 10UL * 60 * 1000;  // online this long = count back to 0
+#else
+constexpr uint32_t CLOUD_STUCK_RESTART_MS = 90000;
+constexpr uint32_t CLOUD_STUCK_RESET_AFTER_MS = 60000;
+#endif
 constexpr uint32_t BOOT_BUTTON_SHORT_MAX_MS = 1500;  // shorter press = open the setup hotspot
 
 // ---- Cloud (Firebase) ----

@@ -130,6 +130,7 @@ bool apOn = false;
 PortalReason reason = PortalReason::None;
 uint32_t lastActivityMs = 0;
 uint32_t offlineSinceMs = 0;
+uint32_t cloudPortalCooldownUntilMs = 0;  // after an unused "cloud offline" hotspot closed
 String apSsid;
 bool routesAdded = false;
 
@@ -159,7 +160,7 @@ void handleStatus() {
   d["fw"] = fw;
   d["hotspot"] = apSsid;
   d["reason"] = reasonName(reason);
-  if (reason != PortalReason::Offline) {
+  if (reason != PortalReason::Offline || WiFi.status() == WL_CONNECTED) {
     const uint32_t idle = millis() - lastActivityMs;
     d["closesInS"] = idle >= PORTAL_IDLE_CLOSE_MS ? 0 : (PORTAL_IDLE_CLOSE_MS - idle) / 1000;
   }
@@ -368,10 +369,13 @@ void serviceWifi(uint32_t now) {
 }
 
 void servicePortal(uint32_t now, bool cloudOnline) {
-  const bool offline = WiFi.status() != WL_CONNECTED || !cloudOnline;
+  const bool wifiUp = WiFi.status() == WL_CONNECTED;
+  const bool offline = !wifiUp || !cloudOnline;
   if (offline) {
     if (!offlineSinceMs) offlineSinceMs = now;
-    if (now - offlineSinceMs >= PORTAL_OFFLINE_AFTER_MS && reason != PortalReason::Offline) {
+    // WiFi up but no cloud: after an unused hotspot closed, give the cloud the memory for a while.
+    const bool cooling = wifiUp && (int32_t)(now - cloudPortalCooldownUntilMs) < 0;
+    if (now - offlineSinceMs >= PORTAL_OFFLINE_AFTER_MS && reason != PortalReason::Offline && !cooling) {
       Serial.printf("[NET] offline for %lu s: opening the setup hotspot until back online\n",
                     (unsigned long)(PORTAL_OFFLINE_AFTER_MS / 1000));
       openPortal(PortalReason::Offline);
@@ -381,7 +385,8 @@ void servicePortal(uint32_t now, bool cloudOnline) {
     if (reason == PortalReason::Offline) {
       reason = PortalReason::Button;  // back online: the normal 3-minute idle timer takes over
       touchActivity();
-      Serial.println("[NET] back online: setup hotspot closes after 3 min without use");
+      Serial.printf("[NET] back online: setup hotspot closes after %lu s without use\n",
+                    (unsigned long)(PORTAL_IDLE_CLOSE_MS / 1000));
     }
   }
 
@@ -390,7 +395,14 @@ void servicePortal(uint32_t now, bool cloudOnline) {
   server.handleClient();
   // Fresh millis(): a request handled just above may have set lastActivityMs after `now` was taken.
   const uint32_t idle = millis() - lastActivityMs;
-  if (reason != PortalReason::Offline && !trial.active && idle >= PORTAL_IDLE_CLOSE_MS) stopAp();
+  // "Stays open while offline" only while WiFi itself is down. With WiFi up, the hotspot (~46 KB) competes
+  // with the TLS connection that would bring the cloud back: fw 0.3.0 kept both and, with a fragmented heap
+  // after hours, TLS setup failed (-0x7F00) and the hub stayed offline for 5 h. So it closes when unused.
+  const bool holdOpen = reason == PortalReason::Offline && !wifiUp;
+  if (!holdOpen && !trial.active && idle >= PORTAL_IDLE_CLOSE_MS) {
+    if (reason == PortalReason::Offline) cloudPortalCooldownUntilMs = millis() + PORTAL_CLOUD_COOLDOWN_MS;
+    stopAp();
+  }
 }
 
 void onEvent(arduino_event_id_t event, arduino_event_info_t info) {
@@ -463,6 +475,7 @@ void loop(bool cloudOnline) {
 
 bool connected() { return WiFi.status() == WL_CONNECTED; }
 bool portalOpen() { return apOn; }
+bool portalInUse() { return apOn && WiFi.softAPgetStationNum() > 0; }
 String currentSsid() { return WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String(); }
 
 void openPortal(PortalReason why) {
