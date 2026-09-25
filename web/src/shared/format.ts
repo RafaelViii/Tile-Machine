@@ -39,7 +39,7 @@ export function humanize(s: string | undefined): string {
 const FAULT_BITS: Record<string, string[]> = {
   shredder: ['Switch wiring (both contacts closed)', 'OLED not found'],
   containing: [],
-  hotpress: ['Selector wiring (both contacts closed)', 'OLED not found'],
+  hotpress: ['Selector wiring (both contacts closed)', 'OLED not found', 'ON button signal noisy (check wiring)'],
 };
 
 export function faultList(moduleId: string, faults: number | undefined): string[] {

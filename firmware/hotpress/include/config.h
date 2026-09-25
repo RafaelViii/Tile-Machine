@@ -3,7 +3,7 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t HOTPRESS_FW = tile::fwEncode(0, 1, 1);
+constexpr uint16_t HOTPRESS_FW = tile::fwEncode(0, 1, 2);
 
 constexpr uint32_t INPUT_SETTLE_MS = 60;        // initial settle only; the web config (button/selector debounce) replaces it
 // Power-up interlock (safety invariant 3), per output: after boot the ON button must read OFF and
@@ -16,3 +16,4 @@ constexpr uint32_t IDENTIFY_MS = 3000;
 // Fault bits reported in StatusCommon.faults (web: shared/format.ts)
 constexpr uint16_t FAULT_SELECTOR_WIRING = 0x01;  // both selector contacts closed
 constexpr uint16_t FAULT_OLED_MISSING = 0x02;
+constexpr uint16_t FAULT_BUTTON_NOISE = 0x04;     // ON button pin flickering (noise / bad contact)

@@ -25,6 +25,7 @@ namespace {
 
 ModuleLink hubLink(ModuleId::HOTPRESS, HOTPRESS_FW);
 OnButton onBtn;
+PinNoiseMonitor onBtnNoise;
 SelectorSwitch selector;
 Display display;
 
@@ -165,7 +166,8 @@ void publishStatus() {
   StatusHotpress s = {};
   s.c.uptimeS = millis() / 1000;
   s.c.configVersion = cfg.configVersion;
-  s.c.faults = (selector.wiringFault() ? FAULT_SELECTOR_WIRING : 0) | (display.present() ? 0 : FAULT_OLED_MISSING);
+  s.c.faults = (selector.wiringFault() ? FAULT_SELECTOR_WIRING : 0) | (display.present() ? 0 : FAULT_OLED_MISSING) |
+                (onBtnNoise.noisy() ? FAULT_BUTTON_NOISE : 0);
   s.c.interlock = (designGuard.interlocked && designGuard.interlockShown) ||
                   (pressGuard.interlocked && pressGuard.interlockShown);
   s.onButton = onBtn.on();
@@ -220,6 +222,7 @@ void setup() {
 
   pinMode(PIN_STATUS_LED, OUTPUT);
   onBtn.begin(PIN_ON_BUTTON, INPUT_SETTLE_MS);
+  onBtnNoise.begin(PIN_ON_BUTTON);
   selector.begin(PIN_SEL_LEFT, PIN_SEL_RIGHT, INPUT_SETTLE_MS);
 
   Preferences p;
@@ -251,6 +254,7 @@ void setup() {
 
 void loop() {
   updateLogic();  // outputs first
+  onBtnNoise.report("ON button", onBtn.on());
   hubLink.loop();
   publishStatus();
   updateDisplay();
