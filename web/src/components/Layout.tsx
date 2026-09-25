@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { useMachine } from '../shared/machine';
 import { AccountMenu } from './AccountMenu';
 import { CommandButton } from './CommandButton';
-import { HubIcon } from './icons';
+import { HubIcon, LogoMark } from './icons';
 import { Badge, StatusDot, cx } from './ui';
 
 const links = [
@@ -29,7 +29,7 @@ export function Layout() {
       <header className="bar sticky top-0 z-30 border-b border-zinc-800 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="" className="h-7 w-7" />
+            <LogoMark className="h-6 w-6" />
             <span className="hidden text-base font-bold tracking-tight sm:inline">Tile Machine</span>
           </div>
 

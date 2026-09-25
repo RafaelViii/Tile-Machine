@@ -110,3 +110,16 @@ export const LogoutIcon = (p: P) => (
     <path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 16l-4-4 4-4M6 12h10" />
   </svg>
 );
+
+/** Brand mark: four tiles in the app's line style, one filled with the accent (the tile being made). */
+export const LogoMark = (p: P) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden {...p}>
+    <g stroke="currentColor" strokeWidth={1.7} strokeLinejoin="round" className="text-zinc-400">
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+    </g>
+    {/* Same outer size as the stroked tiles (stroke adds 0.85 on each side). */}
+    <rect x="12.65" y="12.65" width="9.2" height="9.2" rx="2.85" className="fill-emerald-400" />
+  </svg>
+);
