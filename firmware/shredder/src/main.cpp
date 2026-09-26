@@ -88,6 +88,8 @@ uint32_t relayOnSinceMs = 0;
 uint32_t lastTickMs = 0;
 uint32_t lastWarnBeepMs = 0;
 uint32_t identifyUntilMs = 0;
+bool pitchTestOn = false;         // buzzer pitch test playing (IDENTIFY arg 1)
+ShredderMode pitchTestMode = {};  // switch position when it started: any change cancels the test
 const char* flashMsg = nullptr;
 uint32_t flashUntilMs = 0;
 uint32_t rebootAtMs = 0;
@@ -342,6 +344,14 @@ AckResult onCommand(const CommandPayload& c) {
       doStop(true);
       return AckResult::OK;
     case Cmd::IDENTIFY:
+      if (c.arg == IDENTIFY_ARG_PITCH_TEST && isIdle()) {  // service tool: find the buzzer's loudest pitch
+        buzzer.stop();
+        buzzer.play(TONES(sounds::PITCH_TEST));
+        pitchTestOn = true;
+        pitchTestMode = modeSw.position();
+        Serial.println("[STATE] buzzer pitch test (the OLED shows each pitch)");
+        return AckResult::OK;
+      }
       identifyUntilMs = millis() + IDENTIFY_MS;
       buzzer.play(TONES(sounds::IDENTIFY));
       return AckResult::OK;
@@ -378,6 +388,7 @@ void publishStatus() {
 }
 
 uint32_t lastFrameMs = 0;
+uint16_t lastTestHz = 0;  // pitch test: keep showing the last pitch during the gaps
 
 void updateDisplay() {
   const uint32_t now = millis();
@@ -399,6 +410,8 @@ void updateDisplay() {
   v.epoch = hubLink.nowEpoch();
   v.tzOffsetMin = hubLink.tzOffsetMin();
   v.identify = (int32_t)(identifyUntilMs - now) > 0;
+  v.testHz = pitchTestOn ? (buzzer.currentHz() ? buzzer.currentHz() : lastTestHz) : 0;
+  if (v.testHz) lastTestHz = v.testHz;
   v.flash = flashMsg;
   v.switchFault = modeSw.wiringFault();
   display.draw(v);
@@ -456,6 +469,14 @@ void setup() {
 void loop() {
   updateLogic();  // safety-relevant work first
   noise.loop();
+  // The pitch test is long (~15 s): it stops the moment anything happens at the machine, so it can never
+  // hold back a warning or a mode-change sound queued behind it.
+  if (pitchTestOn && (!isIdle() || modeSw.position() != pitchTestMode)) {
+    buzzer.stop();
+    pitchTestOn = false;
+    Serial.println("[STATE] pitch test cancelled (machine in use)");
+  }
+  if (pitchTestOn && !buzzer.busy()) pitchTestOn = false;
   buzzer.update();
   hubLink.loop();
   publishStatus();

@@ -4,7 +4,7 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 4);
+constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 7);
 
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;       // START/STOP filter at boot; web config buttonDebounceMs replaces it
 constexpr uint32_t SWITCH_SETTLE_MS = 250;        // switch filter at boot; web config switchDebounceMs replaces it
@@ -15,6 +15,7 @@ constexpr uint32_t INTERLOCK_OFF_HOLD_MS = 1000;
 constexpr uint32_t FRAME_MS = 80;                 // OLED refresh (~12 fps; one frame ~25 ms of I2C)
 constexpr uint32_t RUNNING_TICK_MS = 4000;        // quiet reminder beep while the motor runs
 constexpr uint32_t IDENTIFY_MS = 3000;
+constexpr int32_t IDENTIFY_ARG_PITCH_TEST = 1;  // IDENTIFY with this arg (idle only) = buzzer pitch test
 constexpr uint32_t RESULT_FLASH_MS = 1500;        // "cancelled"/"timeout" message time on the OLED
 constexpr uint8_t BUZZER_LEDC_CHANNEL = 0;
 

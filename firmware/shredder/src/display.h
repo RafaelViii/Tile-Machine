@@ -19,6 +19,7 @@ struct View {
   bool identify;              // blink the whole screen (web IDENTIFY)
   const char* flash;          // short message ("STOPPED", "TIMED OUT", ...) or nullptr
   bool switchFault;
+  uint16_t testHz;            // buzzer pitch test running: the pitch to show (0 = no test)
 };
 
 class Display {

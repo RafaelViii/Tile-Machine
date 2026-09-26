@@ -60,19 +60,33 @@ Top status bar on every screen: mode, IR ● / ○, and a link icon (hub connect
 
 | Event | Sound |
 |---|---|
-| Boot | C-E-G rising chime |
-| START / button click | 1 short 2 kHz tick |
-| **LOADED** (IR detects) | **Two high rising tones** 1.5 kHz → 2.5 kHz, 2× |
-| **EMPTY** (IR clear) | **One long low falling tone** 800 Hz → 400 Hz |
-| AUTO warning countdown | 2 kHz beep every 1 s, every 0.25 s in the last second |
-| Relay ON | 1 s rising sweep |
-| Relay OFF | short falling sweep |
-| STOP / E-STOP | 3 fast 3 kHz alarm pulses |
-| Mode change | 2 medium beeps |
-| Running heartbeat | quiet 1 kHz tick every 4 s |
+| Boot | rising chime 3.6 → 4.5 kHz |
+| START / button click | 1 short 4.25 kHz tick (70 ms) |
+| **LOADED** (IR detects) | **Two high rising tones** 3.6 → 4.6 kHz, 2× |
+| **EMPTY** (IR clear) | **One long falling tone** 4.8 → 3.7 kHz |
+| AUTO warning countdown | 4.25 kHz beep every 1 s, 4.5 kHz every 0.25 s in the last second |
+| Relay ON | rising sweep 3.4 → 4.9 kHz |
+| Relay OFF | short falling sweep 4.8 → 3.6 kHz |
+| STOP / E-STOP | 3 fast 4.3 kHz alarm pulses |
+| Mode change | 2 medium 4 kHz beeps |
+| Cancel | 4.5 kHz then 3.7 kHz |
+| "Not now" (interlock, START refused) | 2 long 3.6 kHz beeps |
+| Running heartbeat | quiet 4.25 kHz tick every 4 s |
 | IDENTIFY (remote) | alternating 1 kHz / 2 kHz for 3 s |
 
 Uses the legacy non-blocking **queued pattern player**, extended with a frequency per step.
+
+**Loudness (fw 0.2.5 – 0.2.7):** a passive buzzer is only loud near its resonance. The first sounds used
+400–1200 Hz and were barely audible even at 100 % volume. The installed module (VCC on **5 V**, signal GPIO 13)
+measured loudest at **4000–4500 Hz**, so every sound is centred on ~4.25 kHz (3.4–4.9 kHz), keeping its shape
+(rising, falling, "not now" lower). Volume 100 % is already the loudest the software can drive it; louder
+needs a louder part (e.g. a 12 V piezo siren through a transistor, for warnings only).
+
+**Pitch test (service tool, fw 0.2.6):** IDENTIFY with `arg = 1`, only while the shredder is idle, plays
+1500–5000 Hz in 250 Hz steps (0.7 s each, ~15 s) and the OLED shows `BUZZER PITCH TEST` with the pitch playing.
+Any switch change or leaving idle cancels it at once, so it can never hold back a warning. The website doesn't
+offer it (send the command with `arg: 1`); use it after changing the buzzer, then re-centre the sounds in
+`src/buzzer.h`.
 
 ## Input filtering and noise (fw 0.2.2 – 0.2.4)
 

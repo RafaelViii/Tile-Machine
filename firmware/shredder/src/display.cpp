@@ -174,6 +174,19 @@ void render(const View& v, float bladeDeg) {
     }
   }
 
+  if (v.testHz) {  // buzzer pitch test: the pitch playing now, big
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    centered(12, "BUZZER PITCH TEST");
+    char hz[12];
+    snprintf(hz, sizeof(hz), "%u Hz", (unsigned)v.testHz);
+    u8g2.setFont(u8g2_font_helvB14_tr);
+    centered(40, hz);
+    u8g2.setFont(u8g2_font_6x10_tr);
+    centered(60, "Note the loudest one");
+    return;
+  }
+
   if (v.identify && (millis() / 200) % 2) {  // web IDENTIFY: blink the whole screen
     u8g2.setDrawColor(2);
     u8g2.drawBox(0, 0, 128, 64);

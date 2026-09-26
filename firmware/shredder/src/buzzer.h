@@ -19,6 +19,14 @@ class Buzzer {
   void play(const Tone* tones, uint8_t count, Level level = Level::NORMAL, bool urgent = false);
   void update();
   bool busy() const { return active_ || count_ > 0; }
+  /** Silence now and drop everything queued. */
+  void stop() {
+    count_ = 0;
+    active_ = false;
+    output(0, Level::NORMAL);
+  }
+  /** Pitch playing right now (0 = silent or a gap). */
+  uint16_t currentHz() const { return active_ ? cur_.tones[step_].hz : 0; }
 
  private:
   struct Item {
@@ -47,21 +55,32 @@ class Buzzer {
 #define TONES(p) (p), (uint8_t)(sizeof(p) / sizeof(Tone))
 
 // ---- Sound vocabulary (docs/modules/shredder.md) ----
+// A passive buzzer is only loud near its resonance. The installed module (5 V) measured loudest at 4000-4500 Hz
+// with PITCH_TEST (2026-09-26); below ~1.5 kHz it is barely audible. fw 0.2.7 centres every sound on ~4.25 kHz
+// (3.4-4.9 kHz) and keeps each one's shape (rising, falling, "error" lower than "ok"). Warnings sit on the
+// loudest pitch. A different buzzer: run the pitch test again and re-centre. (IDENTIFY keeps its 1/2 kHz warble.)
 namespace sounds {
-constexpr Tone BOOT[] = {{523, 120}, {659, 120}, {784, 220}};
-constexpr Tone CLICK[] = {{2000, 40}};
-// LOADED: two quick rising chirps (high). EMPTY: one long falling tone (low). Deliberately opposite.
-constexpr Tone LOADED[] = {{1500, 70}, {2000, 70}, {2500, 90}, {0, 70}, {1500, 70}, {2000, 70}, {2500, 110}};
-constexpr Tone EMPTY[] = {{800, 110}, {720, 110}, {640, 110}, {560, 110}, {480, 110}, {400, 160}};
-constexpr Tone WARN_TICK[] = {{2000, 120}};
-constexpr Tone WARN_FAST[] = {{2400, 60}};
-constexpr Tone RELAY_ON[] = {{600, 90}, {800, 90}, {1000, 90}, {1200, 90}, {1400, 90}, {1600, 90}, {1800, 160}};
-constexpr Tone RELAY_OFF[] = {{1500, 60}, {1200, 60}, {900, 60}, {600, 120}};
-constexpr Tone ESTOP[] = {{3000, 120}, {0, 70}, {3000, 120}, {0, 70}, {3000, 180}};
-constexpr Tone MODE_CHANGE[] = {{1200, 150}, {0, 100}, {1200, 150}};
-constexpr Tone CANCEL[] = {{900, 80}, {0, 50}, {600, 140}};
-constexpr Tone RUNNING_TICK[] = {{1000, 30}};
-constexpr Tone INTERLOCK[] = {{400, 250}, {0, 120}, {400, 250}};
+constexpr Tone BOOT[] = {{3600, 110}, {4000, 110}, {4500, 200}};
+constexpr Tone CLICK[] = {{4250, 70}};
+// LOADED: two quick rising chirps (high). EMPTY: one long falling tone (lower). Deliberately opposite.
+constexpr Tone LOADED[] = {{3600, 70}, {4100, 70}, {4600, 90}, {0, 70}, {3600, 70}, {4100, 70}, {4600, 110}};
+constexpr Tone EMPTY[] = {{4800, 110}, {4600, 110}, {4400, 110}, {4200, 110}, {4000, 110}, {3700, 180}};
+constexpr Tone WARN_TICK[] = {{4250, 120}};
+constexpr Tone WARN_FAST[] = {{4500, 60}};
+constexpr Tone RELAY_ON[] = {{3400, 80}, {3650, 80}, {3900, 80}, {4150, 80}, {4400, 80}, {4650, 80}, {4900, 160}};
+constexpr Tone RELAY_OFF[] = {{4800, 60}, {4400, 60}, {4000, 60}, {3600, 130}};
+constexpr Tone ESTOP[] = {{4300, 120}, {0, 70}, {4300, 120}, {0, 70}, {4300, 180}};
+constexpr Tone MODE_CHANGE[] = {{4000, 150}, {0, 100}, {4000, 150}};
+constexpr Tone CANCEL[] = {{4500, 80}, {0, 50}, {3700, 160}};
+constexpr Tone RUNNING_TICK[] = {{4250, 30}};                     // played QUIET on purpose
+constexpr Tone INTERLOCK[] = {{3600, 250}, {0, 120}, {3600, 250}};  // "not now": lower + longer than MODE_CHANGE
+// Pitch test (IDENTIFY with arg 1, idle only): 1.5-5 kHz in 250 Hz steps, the OLED shows each pitch, so the
+// buzzer's loudest pitch (its resonance) can be read off and every sound tuned to it.
+constexpr Tone PITCH_TEST[] = {{1500, 700}, {0, 300}, {1750, 700}, {0, 300}, {2000, 700}, {0, 300}, {2250, 700},
+                               {0, 300},    {2500, 700}, {0, 300}, {2750, 700}, {0, 300}, {3000, 700}, {0, 300},
+                               {3250, 700}, {0, 300}, {3500, 700}, {0, 300}, {3750, 700}, {0, 300}, {4000, 700},
+                               {0, 300},    {4250, 700}, {0, 300}, {4500, 700}, {0, 300}, {4750, 700}, {0, 300},
+                               {5000, 700}};
 constexpr Tone IDENTIFY[] = {{1000, 100}, {2000, 100}, {1000, 100}, {2000, 100}, {1000, 100}, {2000, 100},
                              {1000, 100}, {2000, 100}, {1000, 100}, {2000, 100}, {1000, 100}, {2000, 100},
                              {1000, 100}, {2000, 100}, {1000, 100}, {2000, 100}, {1000, 100}, {2000, 100},
