@@ -4,7 +4,7 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 7);
+constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 8);
 
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;       // START/STOP filter at boot; web config buttonDebounceMs replaces it
 constexpr uint32_t SWITCH_SETTLE_MS = 250;        // switch filter at boot; web config switchDebounceMs replaces it
