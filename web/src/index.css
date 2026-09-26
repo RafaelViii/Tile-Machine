@@ -24,16 +24,20 @@
   --surface-shadow: none;
   --bar-bg: color-mix(in oklab, var(--color-zinc-950) 90%, transparent);
   --tile-off-opacity: 0.5;
+  --tile-connected-edge: rgb(52 211 153 / 0.25);
+  --btn-disabled-bg: unset; /* dark: disabled buttons just fade (opacity) */
+  --btn-disabled-fg: unset;
 }
 
 /* ------------------------------------------------------------------------------------------
-   Light mode. Dark mode keeps Tailwind's default zinc palette untouched. Light mode swaps the
-   zinc scale for a cool grey one (light page, white panels, dark text), gives panels a real
-   border + soft shadow, and darkens the status text shades so they read well on white.
-   Declared twice: explicit choice (data-theme) and "Auto" following the device setting.
+   Light mode. Dark mode keeps Tailwind's default palette untouched. Light mode swaps the zinc
+   scale (light page, white panels, dark text), gives panels a real border + soft shadow, and uses
+   a calmer accent set. Declared twice with the SAME values: explicit choice (data-theme) and
+   "Auto" following the device setting. Change both copies together.
    ------------------------------------------------------------------------------------------ */
 :root[data-theme="light"] {
   color-scheme: light;
+  /* Greys: the zinc scale reversed (dark text on a light page, white panels). */
   --color-zinc-50: #0a0b0d;
   --color-zinc-100: #14171c;
   --color-zinc-200: #22262d;
@@ -45,22 +49,38 @@
   --color-zinc-800: #e5e5ea;
   --color-zinc-900: #ffffff;
   --color-zinc-950: #f2f2f7;
-  --color-emerald-300: #047857;
-  --color-emerald-400: #059669;
-  --color-amber-300: #b45309;
-  --color-red-300: #b91c1c;
-  --color-red-400: #dc2626;
-  --color-sky-300: #0369a1;
-  --color-orange-300: #c2410c;
+  /* Accents: Tailwind v4's colours are very saturated. On near-black they read calm, on white they look
+     neon. Light mode uses one calmer, slightly deeper set; each hue keeps its role:
+     500 = fills and tints (/10, /30 rings), 400 = hover / small fills, 300 = text and icons. */
+  --color-emerald-300: #0e7a53;
+  --color-emerald-400: #11704d;
+  --color-emerald-500: #15835b;
+  --color-red-300: #b42a24;
+  --color-red-400: #c9362f;
+  --color-red-500: #c2332d;
+  --color-red-600: #d63a33;
+  --color-amber-300: #a45f06;
+  --color-amber-400: #b86e07;
+  --color-amber-500: #d88a0e;
+  --color-sky-300: #1a6aa8;
+  --color-sky-400: #1f74b8;
+  --color-sky-500: #2b8fd6;
+  --color-orange-300: #b9520f;
+  --color-orange-500: #e2711d;
+  --color-ink: #ffffff; /* text on the green fills: white on the deeper light-mode green */
   --surface-bg: #ffffff;
   --surface-border: #e5e5ea;
   --surface-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 2px 6px rgb(16 24 40 / 0.05);
   --bar-bg: rgb(255 255 255 / 0.92);
   --tile-off-opacity: 0.85;
+  --tile-connected-edge: transparent; /* the tile border alone is enough on white */
+  --btn-disabled-bg: #e5e5ea; /* disabled primary/danger: plain grey, not a washed-out colour */
+  --btn-disabled-fg: #8e8e93;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
+    /* Greys: the zinc scale reversed (dark text on a light page, white panels). */
     --color-zinc-50: #0a0b0d;
     --color-zinc-100: #14171c;
     --color-zinc-200: #22262d;
@@ -72,18 +92,33 @@
     --color-zinc-800: #e5e5ea;
     --color-zinc-900: #ffffff;
     --color-zinc-950: #f2f2f7;
-    --color-emerald-300: #047857;
-    --color-emerald-400: #059669;
-    --color-amber-300: #b45309;
-    --color-red-300: #b91c1c;
-    --color-red-400: #dc2626;
-    --color-sky-300: #0369a1;
-    --color-orange-300: #c2410c;
+    /* Accents: Tailwind v4's colours are very saturated. On near-black they read calm, on white they look
+       neon. Light mode uses one calmer, slightly deeper set; each hue keeps its role:
+       500 = fills and tints (/10, /30 rings), 400 = hover / small fills, 300 = text and icons. */
+    --color-emerald-300: #0e7a53;
+    --color-emerald-400: #11704d;
+    --color-emerald-500: #15835b;
+    --color-red-300: #b42a24;
+    --color-red-400: #c9362f;
+    --color-red-500: #c2332d;
+    --color-red-600: #d63a33;
+    --color-amber-300: #a45f06;
+    --color-amber-400: #b86e07;
+    --color-amber-500: #d88a0e;
+    --color-sky-300: #1a6aa8;
+    --color-sky-400: #1f74b8;
+    --color-sky-500: #2b8fd6;
+    --color-orange-300: #b9520f;
+    --color-orange-500: #e2711d;
+    --color-ink: #ffffff; /* text on the green fills: white on the deeper light-mode green */
     --surface-bg: #ffffff;
     --surface-border: #e5e5ea;
     --surface-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 2px 6px rgb(16 24 40 / 0.05);
     --bar-bg: rgb(255 255 255 / 0.92);
     --tile-off-opacity: 0.85;
+    --tile-connected-edge: transparent; /* the tile border alone is enough on white */
+    --btn-disabled-bg: #e5e5ea; /* disabled primary/danger: plain grey, not a washed-out colour */
+    --btn-disabled-fg: #8e8e93;
   }
 }
 
@@ -124,7 +159,22 @@ body {
 
 /* Connected tile: steady accent edge, no halo or pulse */
 .tile-connected {
-  box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.25);
+  box-shadow: inset 0 0 0 1px var(--tile-connected-edge);
+}
+
+/* Light mode: a disabled coloured button turns plain grey (a faded green/red looked washed out on white).
+   Unlayered, so it wins over the Tailwind utilities. */
+:root[data-theme="light"] :is([data-variant="primary"], [data-variant="danger"]):disabled {
+  background-color: var(--btn-disabled-bg);
+  color: var(--btn-disabled-fg);
+  opacity: 1;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) :is([data-variant="primary"], [data-variant="danger"]):disabled {
+    background-color: var(--btn-disabled-bg);
+    color: var(--btn-disabled-fg);
+    opacity: 1;
+  }
 }
 
 input[type="number"]::-webkit-inner-spin-button {

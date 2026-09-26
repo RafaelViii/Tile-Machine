@@ -71,6 +71,7 @@ export function Button({
   return (
     <button
       {...rest}
+      data-variant={variant}
       className={cx(
         'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-3.5 py-2 text-sm',
