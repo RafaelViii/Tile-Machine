@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
+import { increment, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
 import { auth, db } from '../../lib/firebase';
 import { auditEntry } from '../audit';
 import type { CommandStatus, CommandType, ModuleId } from '../types/rtdb';
@@ -44,7 +44,8 @@ export function useCommand(moduleId: ModuleId | 'all') {
         };
         if (opts.target !== undefined) body.target = opts.target;
         if (opts.arg !== undefined) body.arg = opts.arg;
-        // Command + its Activity-log entry in one atomic write.
+        // Command + its Activity-log entry + the hub's wake-up signal in one atomic write (the hub reads
+        // /signal every second and only then downloads /commands: docs/DATA_MODEL.md "Signal").
         const cmdKey = push(ref(db, `commands/${moduleId}`)).key!;
         const where = moduleId === 'all' ? 'all modules' : MODULE_LABEL[moduleId];
         const extra = opts.target !== undefined ? ` (unit ${opts.target}${opts.arg !== undefined ? `, ${opts.arg}` : ''})` : '';
@@ -53,7 +54,11 @@ export function useCommand(moduleId: ModuleId | 'all') {
           summary: `${type} → ${where}${extra}`,
           cmdId: cmdKey,
         });
-        await update(ref(db), { [`commands/${moduleId}/${cmdKey}`]: body, [auditPath]: entry });
+        await update(ref(db), {
+          [`commands/${moduleId}/${cmdKey}`]: body,
+          [auditPath]: entry,
+          'signal/commands': increment(1),
+        });
         let logged = false;
         // The hub normally answers in well under a second. Still 'pending' after this = it didn't pick the
         // command up (hub offline, or a hub bug like fw <= 0.3.3 dropping web commands): say so, don't wait forever.

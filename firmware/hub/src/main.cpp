@@ -798,7 +798,6 @@ void loop() {
   }
   diag::phase(diag::Task::Loop, "net");
   net::loop(cloudOk());
-  cloud::setPollCommands(net::portalOpen());  // the hotspot needs the stream's memory
   cloudWatchdog();
   serviceClock();
   serviceTimeBroadcast();

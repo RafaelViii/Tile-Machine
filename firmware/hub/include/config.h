@@ -4,8 +4,8 @@
 #include <TileProtocol.h>
 
 #define HUB_FW_MAJOR 0
-#define HUB_FW_MINOR 3
-#define HUB_FW_PATCH 4
+#define HUB_FW_MINOR 4
+#define HUB_FW_PATCH 0
 constexpr uint16_t HUB_FW = tile::fwEncode(HUB_FW_MAJOR, HUB_FW_MINOR, HUB_FW_PATCH);
 
 // ---- Clock ----
@@ -59,9 +59,10 @@ constexpr uint32_t BOOT_BUTTON_SHORT_MAX_MS = 1500;  // shorter press = open the
 constexpr uint32_t CLOUD_FLUSH_MS = 500;          // batched PATCH of state/presence/events
 constexpr uint8_t CLOUD_TLS_FAILS_RESET = 3;            // connection failures in a row -> rebuild the HTTP clients
 constexpr uint32_t CLOUD_CLIENT_RESET_GAP_MS = 120000;   // at most once per 2 min
-constexpr uint32_t CLOUD_CONFIG_POLL_MS = 3000;   // check modules/*/config/version
-constexpr uint32_t CLOUD_CMD_POLL_MS = 1000;      // /commands poll while the setup hotspot is open (no stream)
-constexpr uint32_t CLOUD_STREAM_IDLE_MS = 70000;  // RTDB sends keep-alive every ~30 s
+constexpr uint32_t CLOUD_SIGNAL_POLL_MS = 500;    // read /signal (web bumps it with every command / config save)
+constexpr uint32_t CLOUD_CMD_FULL_POLL_MS = 15000;  // fallback: read all of /commands (also expires/cleans old ones)
+constexpr uint32_t CLOUD_CONFIG_POLL_MS = 30000;  // fallback: check modules/*/config/version
+constexpr uint32_t CLOUD_REAUTH_MIN_AGE_MS = 300000;  // a 401 on a token older than this = sign in again
 constexpr uint32_t CLOUD_CMD_MAX_AGE_MS = 30000;  // older commands are marked "expired", never executed
 constexpr uint32_t CLOUD_CMD_KEEP_MS = 24UL * 3600 * 1000;       // delete finished commands after 24 h
 constexpr uint64_t CLOUD_EVENT_KEEP_MS = 30ULL * 24 * 3600 * 1000;  // delete events after 30 days

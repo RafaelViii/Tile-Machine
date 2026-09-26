@@ -11,7 +11,7 @@
 
 namespace diag {
 
-enum class Task : uint8_t { Loop, Cloud, Stream, COUNT };
+enum class Task : uint8_t { Loop, Cloud, COUNT };
 
 /** printf to Serial; the line may also go to /hubLog (see above). */
 void printf(const char* fmt, ...) __attribute__((format(printf, 1, 2)));

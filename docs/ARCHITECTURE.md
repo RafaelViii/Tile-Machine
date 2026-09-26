@@ -14,7 +14,7 @@ flowchart LR
   WEB --- AUTH
   HOST -. serves .-> WEB
 
-  HUB[esp0 · HUB<br/>WiFi STA + ESP-NOW] <-- HTTPS / SSE stream --> RTDB
+  HUB[esp0 · HUB<br/>WiFi STA + ESP-NOW] <-- HTTPS REST, one connection --> RTDB
   HUB --- AUTH
 
   HUB <-- ESP-NOW --> SH[esp1 · shredder]
@@ -86,7 +86,8 @@ A tile is shown **Connected** only when `hubOnline && modules/{id}/presence/onli
 ## 4. Config flow (web → module)
 
 1. The web writes `/modules/{id}/config` with `version = previous + 1` (RTDB transaction).
-2. The hub sees the new version (it polls `config/version` every 3 s). It converts the JSON to the binary `CONFIG` payload and sends it
+2. The hub sees the new version (the web also writes it to `/signal/config/{id}`, which the hub reads every
+   500 ms; `config/version` itself is checked every 30 s as a fallback). It converts the JSON to the binary `CONFIG` payload and sends it
    with an ACK request (3 retries, 200 ms apart).
 3. The module validates ranges. It ACKs `OK` or `REJECTED`, stores the config in NVS, and applies
    it **at the next idle point** (safety invariant 6).
@@ -97,7 +98,9 @@ A tile is shown **Connected** only when `hubOnline && modules/{id}/presence/onli
 
 ## 5. Command flow (web → module)
 
-1. The web pushes `/commands/{moduleId|all}/{pushId} = {type, args, createdAt, by, status:"pending"}`.
+1. The web pushes `/commands/{moduleId|all}/{pushId} = {type, args, createdAt, by, status:"pending"}`, in the
+   same multi-path update as its `/audit` entry and `signal/commands + 1`. The hub reads `/signal` every 500 ms
+   and downloads `/commands` when it changed (and every 15 s anyway).
 2. The hub forwards a `COMMAND` (ACK required) and updates `status` to `sent`, then `done` or
    `failed`.
 3. Allowed types: `STOP`, `IDENTIFY`, `TARE`, `CALIBRATE`, `REBOOT`. `moduleId = all` is only
@@ -113,7 +116,8 @@ A tile is shown **Connected** only when `hubOnline && modules/{id}/presence/onli
 | Hub dead | Modules run standalone on their NVS config and keep re-scanning. The web shows Hub offline. |
 | A module dead | Only that module stops. The others are unaffected. The web greys out its tile(s). |
 | Router changes channel | The hub follows the router. Modules lose the hub, re-scan and re-pair automatically. |
-| Firebase rules reject a write | The hub logs `[ERROR]` on serial. The web shows the error toast. |
+| Firebase rules reject a write | The hub retries the batch path by path and drops only the refused paths, each logged to `/hubLog`. The web shows the error toast. |
+| Hub login token refused (401) | The hub keeps the data, signs in again and resends it (fw 0.4.0). |
 
 ## 7. Firmware structure (every board)
 

@@ -104,6 +104,11 @@ while the hub doesn't know the time.
     }
   },
 
+  "signal": {                       // web, read by the hub every 500 ms (hub fw 0.4.0+), see "Signal"
+    "commands": 42,                 // increment(1) in the same update as every command
+    "config": { "shredder": 27 }    // = the config version, in the same update as every config save
+  },
+
   "hubLog": {                       // hub's own messages (fw 0.3.2+): errors + important lines, 7 days
     "h<bootTag>_000001": { "ts": 1758600000000, "lvl": "E" | "I" | "C", "msg": "Firebase sign-in failed (HTTP -1)" }
   },                               // "C" = crash report written after a crash restart
@@ -209,6 +214,18 @@ falls back to the defaults (`normalizeConfig`), so presets saved before a new fi
 | Curing | same as Hot Press (same ESP32) |
 
 `hubOnline = hub.online && (serverNow − hub.lastSeen) < 25000`
+
+## Signal (hub fw 0.4.0+)
+
+The hub has no live stream (one TLS connection only, see docs/modules/hub.md "One secure connection and
+/signal"). It reads `/signal` every 500 ms and downloads only what changed:
+
+- **Every command** write adds `'signal/commands': increment(1)` to the same multi-path update
+  (`useCommand.ts`).
+- **Every config save** adds `signal/config/<module> = version` to the same update (`configDrafts.tsx`).
+- Rules: staff write, numbers only; hub and staff read. Anything else under `/signal` is refused.
+- Something written without the signal (CLI, old page still open) is still picked up by the fallbacks:
+  `/commands` every 15 s, config versions every 30 s. Commands older than 30 s are expired, never run.
 
 ## Retention
 

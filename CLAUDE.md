@@ -157,7 +157,7 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
 - [x] Web dashboard live at https://tile-machine-92345.web.app. All pages, config forms and
       commands. Checked end-to-end with a headless browser against simulated hub data.
 - [x] Phase 1: `TileProtocol` lib + hub auto-pairing + presence over ESP-NOW
-- [x] Phase 2: hub → RTDB (batched state/presence/events, config polling + push, `/commands` stream).
+- [x] Phase 2: hub → RTDB (batched state/presence/events, config + commands via `/signal` since fw 0.4.0).
       **Verified on the real hub (COM7)**: steady `lastSeen` < 11 s, STOP ALL round trip about 125 ms.
       See docs/modules/hub.md for the HTTPClient-blocking and slow-DNS fixes. Hub fw 0.2.0 adds a WiFi
       watchdog (retry every 20 s, reboot after 10 min): core 2.0.x stopped reconnecting after the
@@ -191,13 +191,21 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       accounts work (command + audit entry = one multi-path write = stream `patch` with path keys). Fixed and
       verified from the website in stream mode (0.3-0.4 s each). Web: a command still pending after 10 s shows
       "No answer from the hub". Always test commands through the website.
+      **Hub fw 0.4.0 (2026-09-26, verified on COM7): ONE TLS connection.** Root cause of the recurring offline /
+      dropped-command errors: 2-3 TLS sessions (writes + /commands stream + sign-in) didn't fit in RAM (stream
+      TLS failed ~11/min, sign-in failed, token expired, then Firebase's 401 "Permission denied" was taken as
+      "data refused": batches dropped while still "online"). Now: no stream; the web writes `/signal` with every
+      command/config save and the hub reads it every 500 ms (docs/DATA_MODEL.md "Signal"); DB connection closed
+      during sign-in; any 401 on an older token = sign in again and resend; data refused = retried path by path,
+      only bad paths dropped + logged; online = last request succeeded. Heap 136 KB / block 65-73 KB with the
+      hotspot open (was 110-125 / 47). Commands done in ~1-1.5 s, config applied in ~4 s.
 - [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars, dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):
       up to 5 saved networks, reconnects forever without restarting (the 10-min WiFi reboot is gone), hotspot
       `TileHub-XXXX` (password `PORTAL_PASSWORD` in secrets.h) at every boot / short BOOT press (closes after
-      3 min unused) and after 30 s offline (stays open until back online). While it is open, /commands is
-      polled every 1 s instead of streamed (hotspot + 2 TLS connections didn't fit in RAM: writes failed).
+      3 min unused) and after 30 s offline (stays open until back online). Since fw 0.4.0 the hotspot no
+      longer changes how commands arrive (one TLS connection always).
       Tested on the real hub from the PC's WiFi. Still to do: ESP-NOW encryption, OTA.
 
 ## 9. Open questions / pending decisions

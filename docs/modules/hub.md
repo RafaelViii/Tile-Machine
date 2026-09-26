@@ -13,16 +13,15 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
 4. NTP time sync (for log timestamps). Firebase sign-in as the `hub` user.
 5. Write `/hub` (online, bootAt, fw, ip, rssi, channel). Log `HUB_BOOT`. Set every
    `modules/*/presence/online=false` (fresh start, modules re-announce within a second).
-6. After NTP time sync, open the `/commands` stream (server-sent events), so every command's age
-   can be checked and old commands are never replayed. Poll `modules/*/config/version` every 3 s
-   and download a config only when its version changed. Streaming `/modules` would echo back
-   the hub's own state writes.
+6. Read `/signal` every 500 ms (see "One secure connection and /signal"). Commands are only handled
+   once the hub knows the time, so every command's age can be checked and old commands are never
+   replayed. `modules/*/config/version` is read once at boot, then every 30 s as a fallback.
 
 ## Clock: DS3231 RTC + NTP
 
 - **Boot:** read the DS3231 (I2C 0x68) and set the system clock **before WiFi**. The hub knows the
-  time with no internet, so the `/commands` stream (which needs time to reject old commands)
-  and event timestamps work immediately.
+  time with no internet, so commands (the time is needed to reject old ones) and event timestamps
+  work immediately.
 - **After every NTP sync** (at start, then hourly): NTP wins. The RTC is rewritten if it was never
   set (oscillator-stop flag, e.g. new battery) or drifted more than `RTC_MAX_DRIFT_S` (2 s).
 - **Events** are stamped with the hub clock when they happen (not when uploaded).
@@ -43,14 +42,14 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   rejects the whole batch (HTTP 400). The hub only writes leaf paths such as `hub/lastSeen` and
   `modules/X/state`.
 - One forbidden path fails the **whole** batch (HTTP 401), so command status updates go in
-  **separate** requests.
+  **separate** requests. Since fw 0.4.0 a refused batch is retried path by path: only the refused paths
+  are dropped, and each one is named in the hub log (`Firebase refused <path> (HTTP n), dropped`).
 - **Don't use Arduino `HTTPClient`/`WiFiClientSecure` for the REST writes.** In core 2.0.17,
   `WiFiClientSecure::connected()`/`available()` call `mbedtls_ssl_read()` on a blocking socket.
   On an idle keep-alive connection they block for the full socket timeout (10 s), which stalled
   every write and froze the task. REST therefore uses ESP-IDF `esp_http_client`: one persistent
-  connection to the DB, and the sign-in connection is closed right after use to free about 40 KB
-  of heap. The `/commands` stream uses `WiFiClientSecure` in its **own task**, where blocking reads
-  are harmless.
+  connection to the DB. The sign-in connection is only opened after closing the DB connection, and is
+  closed right after use (see "One secure connection and /signal").
 - **DNS**: the first installation's router took about 7 s per lookup. On every `GOT_IP` the hub
   sets DNS to 8.8.8.8, with the router's DNS as fallback.
 - Measured on the real hub: sign-in about 2 s, batched PATCH about 105 ms, STOP round trip
@@ -104,7 +103,7 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   fragmented, the TLS connection to Firebase could no longer be set up next to it (mbedtls -0x7F00,
   out of memory), so fw 0.3.0 stayed "offline with the hotspot open" for 5 h. Found 2026-09-26.
 - **Self-repair (fw 0.3.3):** 3 connection failures in a row (HTTP -1) while WiFi is up: the cloud task
-  rebuilds both HTTP clients and restarts the command stream (frees their TLS state), at most every 2 min.
+  rebuilds both HTTP clients (frees their TLS state), at most every 2 min.
 - **Cloud watchdog (last resort, fw 0.3.1, fixed in 0.3.3):** 15 min since the LAST SUCCESSFUL cloud
   contact while WiFi works (up 20 s+) and nobody on the setup page = stuck network/TLS stack: the hub
   restarts (modules keep running). 0.3.1 counted "WiFi up and cloud down" continuously, so every WiFi
@@ -112,12 +111,11 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
   (15, 30, 60, 120 min) so an internet outage doesn't cause restart loops; 10 min online resets it.
   `HUB_BOOT` arg1 = 1 marks these restarts (Events page: "restarted by the hub itself"). WiFi loss
   alone never restarts the hub.
-- **Stream robustness (fw 0.3.1):** the first `data:` line of the /commands stream (whole tree) is moved,
-  never copied; if the heap can't hold it the stream reconnects instead of crashing (fw 0.3.0 crashed
-  with LoadProhibited in streamTask after an offline period).
 - **Test builds:** `PLATFORMIO_BUILD_FLAGS="-DHUB_TEST_SHORT_TIMERS"` (minutes → seconds) and
   `-DHUB_TEST_FAKE_CLOUD_DOWN_MS=60000` (cloud "gone" 60 s after boot, WiFi up). Never flash them for use.
   `-DHUB_TEST_FAIL_REQUESTS_FROM_MS=60000`: every cloud request fails for 90 s (self-repair test).
+  `-DHUB_TEST_REJECT_TOKEN_FROM_MS=360000`: from 6 min on, the database refuses the login token in use
+  (401) until the hub signs in again (401 re-login test, fw 0.4.0).
 - **LED:** slow blink = WiFi connecting, fast blink = cloud problem, solid = all good, double blink
   = all good and setup hotspot open.
 - Reported in `/hub`: `wifiSsid` (network) and `portal` (hotspot open), shown on the Dashboard.
@@ -136,11 +134,39 @@ So the hub can run for days without a PC on its USB port. Shown in the Dashboard
   The 10 s status report stays Serial-only.
 - **Crash report:** each task marks what it is doing (`diag::phase`); the marks, the last log line and
   the memory figures live in RTC RAM, which survives a crash restart. After a panic or watchdog reset
-  the hub writes a `C` entry: uptime, what loop/cloud/stream were doing, memory, last message.
+  the hub writes a `C` entry: uptime, what loop/cloud were doing, memory, last message.
 - Lesson (bug found while testing): ArduinoJson 7 stores `const char[]` arrays by POINTER (it takes
   them for string literals). Always `String(...)` local buffers before putting them in a JsonDocument;
   a dangling one made Firebase refuse the whole batch (HTTP 400). A refused batch is now printed.
 - Test build: `-DHUB_TEST_CRASH_AFTER_MS=60000` crashes on purpose to check the crash report.
+
+## One secure connection and /signal (fw 0.4.0)
+
+**Why (found 2026-09-26):** up to fw 0.3.4 the hub kept two TLS connections open (writes + the
+`/commands` SSE stream) and opened a third for the hourly sign-in. Each needs ~40 KB, partly in one block.
+Next to WiFi (and the hotspot) they didn't reliably fit: the hub log showed `command stream: TLS connect
+failed` about 11 times a minute (largest free block always 47 KB), so web commands weren't received, and
+sign-ins failed until the token expired. Firebase then answered every write with 401 `Permission denied`
+(it says the same for an expired token and for a rule violation); 0.3.4 only looked for "expired", so it
+dropped those batches and still counted itself online, which also blinded the cloud watchdog.
+
+**Now:**
+- **One TLS connection at a time.** Every database request uses one keep-alive connection. Before the
+  hourly sign-in that connection is closed; the sign-in connection is closed right after. Measured: 136 KB
+  free, largest block 65 KB, with the setup hotspot open.
+- **No stream.** The website writes `/signal` in the same multi-path update as the change
+  (docs/DATA_MODEL.md "Signal"). The hub reads that tiny node every 500 ms and only then downloads
+  `/commands` or the one module config that changed. A signal counts as seen only once its download worked.
+  Fallbacks (for anything that didn't bump the signal): all of `/commands` every 15 s (this also expires and
+  cleans old commands), config versions at boot and every 30 s. A web command is done in about 1-1.5 s.
+- **Token:** refreshed 5 min before it expires. If a refresh fails, the old token is used until 1 min
+  before its real expiry while sign-in retries (5 s doubling to 60 s).
+- **Any 401 on a token older than 5 min = log in again:** the batch is kept and sent again after the new
+  sign-in; "offline" until then. A 401 on a fresh token means the DATA was refused by a rule: then the
+  batch is retried path by path and only the refused paths are dropped (and logged). No sign-in loops.
+- **"Online" = the last request reached Firebase.** Any failed write or read (network, 5xx, bad token) sets
+  offline, so the cloud watchdog and the LED see the truth.
+- The hotspot no longer changes how commands arrive (0.3.x polled only while it was open).
 
 ## Registry (NVS)
 
@@ -151,11 +177,9 @@ the entry (`MODULE_REPLACED`). Holding the BOOT button for 5 s clears the regist
 
 - ESP-NOW callbacks run in the WiFi task. They must copy the packet into a FreeRTOS queue and
   return. **No Firebase calls inside callbacks.**
-- **/commands stream and multi-path writes (fw 0.3.4):** the web writes each command together with its /audit
-  entry in ONE multi-path update. The stream then delivers a `patch` at path `/` whose KEYS are paths
-  (`{"shredder/-Pabc": {...}}`). fw <= 0.3.3 treated such a key as one name and dropped every web command
-  (they only worked while the hotspot was open, when /commands is polled instead). `splitPath()` now splits
-  every patch key. Any test of commands must go through the website, not a CLI push (a push is a plain `put`).
+- **Test commands through the website**, never with a CLI push: the website's write (command + /audit +
+  /signal in one multi-path update) is what the hub must handle. (fw <= 0.3.3 dropped every web command
+  for this reason while CLI tests passed.)
 - The hub can never change channel (it's bound to the router). The modules follow the hub, also
   when the hub moves to another network from the setup page.
 - The ESP32 has one radio, so WiFi traffic and ESP-NOW share airtime. Keep Firebase writes

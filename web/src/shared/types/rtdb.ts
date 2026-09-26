@@ -268,3 +268,13 @@ export interface EventNode {
   code: string;
   args?: number[];
 }
+
+// ---------- /signal ----------
+/**
+ * Wake-up signal for the hub, written in the same multi-path update as the change it announces. The hub reads
+ * this tiny node every second and only then downloads /commands or that module's config.
+ */
+export interface SignalNode {
+  commands?: number; // +1 (server increment) with every command
+  config?: Partial<Record<ModuleId, number>>; // = the config version just saved
+}

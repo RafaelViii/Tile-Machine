@@ -122,6 +122,7 @@ export function ConfigDraftsProvider({ children }: { children: ReactNode }) {
         const version = (typeof cur?.version === 'number' ? cur.version : 0) + 1;
         const draft = drafts[id]!;
         upd[`modules/${id}/config`] = { ...draft, version, editedBy: uid, editedAt: serverTimestamp() };
+        upd[`signal/config/${id}`] = version; // tells the hub to download it (docs/DATA_MODEL.md "Signal")
         const [path, entry] = auditEntry('CONFIG_SAVE', {
           module: id,
           summary: `Saved ${MODULE_LABEL[id]} settings (v${version})`,

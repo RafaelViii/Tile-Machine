@@ -24,10 +24,10 @@ volatile uint32_t ringDropped = 0;
 // Important non-error lines worth keeping remotely (everything else stays on Serial only).
 const char* const KEEP[] = {"setup hotspot", "offline for", "back online", "WiFi '", "WiFi down",
                             "Firebase online", "Firebase offline", "reset reason", "restarting",
-                            "BOOT", "setup page:", "rebuilding", "command stream closed", "listening for commands"};
+                            "BOOT", "setup page:", "rebuilding", "refused", "signing in again"};
 
 // ---------------- crash breadcrumbs (RTC RAM: kept across a crash restart, not power loss) ----------------
-constexpr uint32_t MAGIC = 0x44494147u;  // "DIAG"
+constexpr uint32_t MAGIC = 0x44494148u;  // "DIAH" (changed with the Crumbs layout: fw 0.4.0 has no stream task)
 struct Crumbs {
   uint32_t magic;
   uint32_t uptimeS, heap, minHeap, block;
@@ -150,9 +150,8 @@ void begin(int resetReason) {
       snprintf(upTxt, sizeof(upTxt), "%lum%02lus", (unsigned long)(up / 60), (unsigned long)(up % 60));
     else
       snprintf(upTxt, sizeof(upTxt), "%luh%02lum", (unsigned long)(up / 3600), (unsigned long)(up / 60 % 60));
-    snprintf(m, sizeof(m), "CRASH after %s. Doing: loop=%s cloud=%s stream=%s. Heap %luK (min %luK, block %luK). Last: %s",
-             upTxt, crumbs.phase[0], crumbs.phase[1],
-             crumbs.phase[2], (unsigned long)(crumbs.heap / 1024), (unsigned long)(crumbs.minHeap / 1024),
+    snprintf(m, sizeof(m), "CRASH after %s. Doing: loop=%s cloud=%s. Heap %luK (min %luK, block %luK). Last: %s",
+             upTxt, crumbs.phase[0], crumbs.phase[1], (unsigned long)(crumbs.heap / 1024), (unsigned long)(crumbs.minHeap / 1024),
              (unsigned long)(crumbs.block / 1024), crumbs.last);
     Serial.printf("[ERROR] %s\n", m);
     cloud::pushLog('C', m);  // straight to the cloud queue (loop context, cloud lock not held)

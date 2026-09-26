@@ -68,6 +68,21 @@
       }
     },
 
+    "signal": {
+      ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
+      "commands": {
+        ".write": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator')",
+        ".validate": "newData.isNumber()"
+      },
+      "config": {
+        "$moduleId": {
+          ".write": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator') && $moduleId.matches(/^(shredder|containing|hotpress)$/)",
+          ".validate": "newData.isNumber()"
+        }
+      },
+      "$other": { ".validate": false }
+    },
+
     "commands": {
       ".read": "auth != null && (root.child('roles/' + auth.uid).val() === 'superadmin' || root.child('roles/' + auth.uid).val() === 'operator' || root.child('roles/' + auth.uid).val() === 'hub')",
       "$moduleId": {
