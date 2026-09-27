@@ -25,7 +25,10 @@ The hub runs **no process logic** and drives **no actuators**. It is a bridge an
 - **After every NTP sync** (at start, then hourly): NTP wins. The RTC is rewritten if it was never
   set (oscillator-stop flag, e.g. new battery) or drifted more than `RTC_MAX_DRIFT_S` (2 s).
 - **Events** are stamped with the hub clock when they happen (not when uploaded).
-- **Modules** get a `TIME` message (UTC + `LOCAL_TZ_OFFSET_MIN` = +480, UTC+8) for their OLED clocks.
+- **Modules** get a `TIME` message (UTC + `LOCAL_TZ_OFFSET_MIN` = +480, UTC+8) for their OLED clocks. The OLEDs show
+  12-hour time ("8:57" + small AM/PM) plus `OLED_CLOCK_ADJUST_S` (each module's config.h, 23 s: matches the
+  operator's watch, which runs ~23 s ahead of internet time; measured 2026-09-27, the hub itself was within 0.5 s).
+  Display only: events and the website keep the real time.
 - The website hub card shows **Clock (DS3231)**: `hub/rtc` = ok / lost-power / missing and
   `hub/timeSource` = ntp / rtc / none.
 - Verified on the hub: an unset RTC was set from NTP 1.2 s after WiFi. On the next boot the RTC gave

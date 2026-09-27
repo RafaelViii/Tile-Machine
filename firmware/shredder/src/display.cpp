@@ -4,6 +4,7 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
+#include "config.h"
 #include "pins.h"
 
 using namespace tile;
@@ -57,19 +58,28 @@ void topBar(const View& v) {
   else u8g2.drawCircle(72, 5, 3);
 
   if (v.paired) {  // hub link: two arrows; blinking dot while searching
-    u8g2.drawLine(82, 3, 89, 3);
-    u8g2.drawLine(87, 1, 89, 3);
-    u8g2.drawLine(82, 7, 89, 7);
-    u8g2.drawLine(82, 7, 84, 9);
+    u8g2.drawLine(79, 3, 86, 3);
+    u8g2.drawLine(84, 1, 86, 3);
+    u8g2.drawLine(79, 7, 86, 7);
+    u8g2.drawLine(79, 7, 81, 9);
   } else if ((millis() / 500) % 2) {
-    u8g2.drawDisc(85, 5, 2);
+    u8g2.drawDisc(82, 5, 2);
   }
 
-  if (v.timeKnown) {
-    const CivilTime c = civilFromEpoch((int64_t)v.epoch + (int64_t)v.tzOffsetMin * 60);
+  if (v.timeKnown) {  // 12-hour clock ("8:57" + small "PM"), right-aligned
+    const CivilTime c =
+        civilFromEpoch((int64_t)v.epoch + OLED_CLOCK_ADJUST_S + (int64_t)v.tzOffsetMin * 60);
+    const unsigned h = c.hour % 24u, h12 = h % 12u ? h % 12u : 12u;
     char t[6];
-    snprintf(t, sizeof(t), "%02u:%02u", c.hour % 24u, c.minute % 60u);
-    put(98, 9, t);
+    snprintf(t, sizeof(t), "%u:%02u", h12, c.minute % 60u);
+    const char* ap = h < 12 ? "AM" : "PM";
+    u8g2.setFont(u8g2_font_4x6_tr);
+    const int wAp = u8g2.getStrWidth(ap);
+    u8g2.setFont(u8g2_font_6x10_tr);
+    put(127 - wAp - 1 - u8g2.getStrWidth(t), 9, t);
+    u8g2.setFont(u8g2_font_4x6_tr);
+    put(128 - wAp, 9, ap);
+    u8g2.setFont(u8g2_font_6x10_tr);
   }
   u8g2.drawHLine(0, 11, 128);
 }
@@ -223,7 +233,7 @@ int Display::selfTest() {
   v.mode = ShredderMode::MANUAL;
   v.paired = true;
   v.timeKnown = true;
-  v.epoch = 1790294109;  // any valid time
+  v.epoch = 1790398717;  // 12:59 PM local after the adjust: the widest clock text
   v.tzOffsetMin = 480;
   v.irDetected = true;
   v.countdownMs = 30000;

@@ -3,7 +3,12 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t HOTPRESS_FW = tile::fwEncode(0, 1, 4);
+constexpr uint16_t HOTPRESS_FW = tile::fwEncode(0, 1, 5);
+
+// OLED clock only: seconds added to the hub's time before it is shown (to match the operator's watch; the
+// shop's reference clock read 23 s ahead of internet time, 2026-09-27). Events and the website keep the real time.
+constexpr int32_t OLED_CLOCK_ADJUST_S = 23;
+
 
 constexpr uint32_t INPUT_SETTLE_MS = 60;        // initial settle only; the web config (button/selector debounce) replaces it
 // Power-up interlock (safety invariant 3), per output: after boot the ON button must read OFF and

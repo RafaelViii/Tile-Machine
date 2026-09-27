@@ -4,7 +4,12 @@
 
 #include <TileProtocol.h>
 
-constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 8);
+constexpr uint16_t SHREDDER_FW = tile::fwEncode(0, 2, 9);
+
+// OLED clock only: seconds added to the hub's time before it is shown (to match the operator's watch; the
+// shop's reference clock read 23 s ahead of internet time, 2026-09-27). Events and the website keep the real time.
+constexpr int32_t OLED_CLOCK_ADJUST_S = 23;
+
 
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;       // START/STOP filter at boot; web config buttonDebounceMs replaces it
 constexpr uint32_t SWITCH_SETTLE_MS = 250;        // switch filter at boot; web config switchDebounceMs replaces it
