@@ -63,6 +63,8 @@ lights up three tiles: Hot Press, Designing and Curing.
 ```
 CLAUDE.md                  ← this file
 README.md
+CODE_GUIDE.md              ← clickable map of all code (for the research paper); its #L line links must
+                             still hit the named functions after edits to those files
 firebase.json              ← Firebase CLI config (RTDB rules + Hosting → web/dist)
 .firebaserc               ← Firebase project id (not secret)
 docs/

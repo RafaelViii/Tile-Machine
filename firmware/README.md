@@ -29,8 +29,8 @@ Platform: `espressif32@6.13.0` (Arduino-ESP32 core 2.0.17). Pin maps: `docs/HARD
 1. `hub/include/secrets.h` must hold your WiFi and the hub account (template: `secrets.example.h`).
 2. PlatformIO sidebar → **Project Tasks → hub → Upload**, or in a terminal:
    `cd firmware/hub && pio run -t upload && pio device monitor`
-3. Serial should show: WiFi connected → `Firebase signed in as hub` → `Firebase online` →
-   `listening for commands`. LED: slow blink = WiFi, fast blink = Firebase problem, solid = OK.
+3. Serial should show: WiFi connected → `Firebase signed in as hub` → `Firebase online`.
+   LED: slow blink = WiFi, fast blink = Firebase problem, solid = OK, double blink = setup hotspot open.
 
 **Link test on a module board (esp1/esp2/esp3)**
 `cd firmware/linktest && pio run -e shredder -t upload` (or `-e containing` / `-e hotpress`).

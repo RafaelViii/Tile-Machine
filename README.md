@@ -14,5 +14,8 @@ Database.
 | [`firebase/`](firebase/) | Realtime Database security rules |
 | [`legacy/`](legacy/) | Old standalone shredder sketch (reference only) |
 
+**Looking for a specific piece of code?** [`CODE_GUIDE.md`](CODE_GUIDE.md) maps every module's files, the
+languages used, and how the hardware and software connect, with clickable links.
+
 Start with [`CLAUDE.md`](CLAUDE.md) (project guide) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Setup steps: [`docs/SETUP.md`](docs/SETUP.md).
