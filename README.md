@@ -17,5 +17,9 @@ Database.
 **Looking for a specific piece of code?** [`CODE_GUIDE.md`](CODE_GUIDE.md) maps every module's files, the
 languages used, and how the hardware and software connect, with clickable links.
 
+**Building something similar?** [`CONNECTIVITY_PLAYBOOK.md`](CONNECTIVITY_PLAYBOOK.md) has the 24/7
+connectivity architecture (ESP-NOW, hub, WiFi hotspot, Firebase), every bug we fixed and why, and a rule
+block to paste into another project's `CLAUDE.md`.
+
 Start with [`CLAUDE.md`](CLAUDE.md) (project guide) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Setup steps: [`docs/SETUP.md`](docs/SETUP.md).

@@ -65,6 +65,8 @@ CLAUDE.md                  ← this file
 README.md
 CODE_GUIDE.md              ← clickable map of all code (for the research paper); its #L line links must
                              still hit the named functions after edits to those files
+CONNECTIVITY_PLAYBOOK.md   ← 24/7 connectivity rules + bug history (portable to other projects); read it
+                             before changing hub/cloud/WiFi/ESP-NOW code, and add any new outage + fix to it
 firebase.json              ← Firebase CLI config (RTDB rules + Hosting → web/dist)
 .firebaserc               ← Firebase project id (not secret)
 docs/
