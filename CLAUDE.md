@@ -3,6 +3,9 @@
 This file keeps every work session on track. Read it first. When a decision changes, update this
 file **in the same commit** as the change.
 
+> **Paused work:** if [SAVEPOINT.md](SAVEPOINT.md) exists, read it right after this file and continue from
+> its "Next task" (the work moved between computers). Remove this note when SAVEPOINT.md is deleted.
+
 ## 1. What we are building
 
 A plastic-recycling **Tile Machine** made of independent process modules. Each module has its own
