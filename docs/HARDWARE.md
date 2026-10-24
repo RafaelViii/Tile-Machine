@@ -3,6 +3,16 @@
 Target board: **ESP32-WROOM-32 DevKit** (38-pin or 30-pin). Each board's `include/pins.h` must
 match this file.
 
+**The installed boards** (COM numbers differ per computer: identify a board by its MAC with
+`esptool.py --port COMx read_mac` before flashing; the website's Devices list shows it too):
+
+| Board | MAC | Flashing |
+|---|---|---|
+| esp0 Hub | F0:24:F9:0C:D2:EC (hotspot `TileHub-D2EC`) | auto |
+| esp1 Shredder | 00:70:07:26:95:4C | **manual** BOOT+EN (CLAUDE.md §8 Phase 3) |
+| esp2 Containing | B0:CB:D8:C8:09:D8 | auto; mounted on the machine, flash via USB in place |
+| esp3 Hotpress | 70:4B:CA:26:AD:F0 | auto |
+
 **Pins avoided on every board**: GPIO 6–11 (flash), strapping pins 0/2/5/12/15 for inputs or
 relays (GPIO2 is only used for the on-board status LED), and GPIO 1/3 (USB serial).
 **Input-only pins** 34/35/36/39 have **no internal pull-ups**. They're used only for signals that

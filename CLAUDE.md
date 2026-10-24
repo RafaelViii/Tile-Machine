@@ -3,9 +3,6 @@
 This file keeps every work session on track. Read it first. When a decision changes, update this
 file **in the same commit** as the change.
 
-> **Paused work:** if [SAVEPOINT.md](SAVEPOINT.md) exists, read it right after this file and continue from
-> its "Next task" (the work moved between computers). Remove this note when SAVEPOINT.md is deleted.
-
 ## 1. What we are building
 
 A plastic-recycling **Tile Machine** made of independent process modules. Each module has its own
@@ -206,7 +203,14 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
       during sign-in; any 401 on an older token = sign in again and resend; data refused = retried path by path,
       only bad paths dropped + logged; online = last request succeeded. Heap 136 KB / block 65-73 KB with the
       hotspot open (was 110-125 / 47). Commands done in ~1-1.5 s, config applied in ~4 s.
-- [ ] Phase 5: Containing firmware (4× HX711, PCA9685 8× servo, buttons, selector, OLED)
+- [~] Phase 5: Containing firmware (firmware/containing, **fw 0.2.0 on the board, 2026-10-24**, COM7 on the dev PC,
+      auto-upload works; board stays mounted on the machine, flash it through USB in place). Raw C1/C2 + mixed
+      C3/C4 state machines, in-house HX711 driver (rejects a missing chip on the floating input-only pins) and
+      PCA9685 driver (hot-plug, no pulse when idle), calibration in NVS, config per container when idle, OLED rows
+      fixed at 21 characters + boot self-test ("all screens fit" on the real screen). Verified on the machine: C1
+      (34/16) and C2 (35/17) load cells read, C3/C4 + PCA9685 not wired yet (reported), paired, website IDENTIFY
+      0.6 s and STOP 1.7 s. **Still to test once wired:** servos, buttons, selector, TARE/CALIBRATE with a known
+      weight, a real LOADCELL and TIME dispense. Selector RIGHT (GPIO 14) picks up noise: 10 kΩ pull-up.
 - [~] Phase 6: Web: Events page uses server-side cursor pagination (docs/DATA_MODEL.md "Reading events"). Original modern design kept (user rejected an "industrial" restyle as too robotic) + Auto/Light/Dark theme (tm-theme in localStorage; light mode reverses the zinc palette via CSS vars and uses a calmer, deeper accent set with white text on green and grey disabled buttons (Tailwind v4 accents looked neon on white), dark = Tailwind defaults). Header: STOP ALL + account menu (email, theme, Sign out). Whole-machine **presets** at `/presets` (docs/DATA_MODEL.md "Presets"): managed on the **Dashboard** (pick one, review the old → new list per module, Save to machine; rename/update/delete in the same dropdown). Drafts live in `shared/configDrafts.tsx` and survive page changes. Dashboard "Devices": one compact line per ESP32 (status, last seen, warning only when something is wrong), details on click. Checked dark/light, desktop + 400 px.
 - [~] Phase 7: Hardening. **Done: WiFi setup hotspot** (hub fw 0.3.0, docs/modules/hub.md "WiFi and setup hotspot"):
       up to 5 saved networks, reconnects forever without restarting (the 10-min WiFi reboot is gone), hotspot
@@ -227,6 +231,10 @@ cd web && npm run build && cd .. && firebase deploy --only hosting   # dashboard
   real event timestamps, `TIME` to modules for OLED clocks. Still open: keep unsent events in its
   AT24C32 EEPROM through power cuts.
 
+- **Shredder fw 0.2.9** (12-hour OLED clock + 23 s display adjust) is in the repo but **not flashed yet**; the board
+  runs 0.2.8. Flash it with the manual BOOT+EN method (Phase 3 notes).
+- **XL4016** servo supply (Containing) is rated ~8 A; eight MG995 draw ~9.6 A running: keep it cooled or don't run
+  all four containers at once.
 - Hotpress **AUTO** logic is not defined yet (placeholder: display `AUTO`, Hotpress relay ON).
 - Real shredder dispense/IR thresholds and container **time tables** are measured on the hardware.
 - Load-cell calibration factors are measured per container (TARE + known weight from the web).

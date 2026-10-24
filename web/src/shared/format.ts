@@ -46,7 +46,16 @@ const FAULT_BITS: Record<string, string[]> = {
     'Switch MANUAL contact noisy',
     'IR sensor signal noisy',
   ],
-  containing: [],
+  containing: [
+    'Selector wiring (both contacts closed)',
+    'OLED not found',
+    'C1 SELECT button signal noisy',
+    'C1 CONFIRM button signal noisy',
+    'C2 SELECT button signal noisy',
+    'C2 CONFIRM button signal noisy',
+    'Selector LEFT contact noisy',
+    'Selector RIGHT contact noisy',
+  ],
   hotpress: [
     'Selector wiring (both contacts closed)',
     'OLED not found',

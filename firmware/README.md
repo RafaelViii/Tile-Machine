@@ -8,7 +8,7 @@ see `docs/PROTOCOL.md`).
 | `hub/` | esp0 Main Hub | ✅ Phase 1+2 | `docs/modules/hub.md` |
 | `linktest/` | esp1/esp2/esp3 (temporary) | ✅ pairing test, drives no machinery | — |
 | `shredder/` | esp1 | Phase 3 | `docs/modules/shredder.md` |
-| `containing/` | esp2 | Phase 5 | `docs/modules/containing.md` |
+| `containing/` | esp2 | ✅ Phase 5, fw 0.2.0 (load cells, servos, buttons, selector, OLED) | `docs/modules/containing.md` |
 | `hotpress/` | esp3 (Hot Press, Designing, Curing) | Phase 4 | `docs/modules/hotpress.md` |
 
 Platform: `espressif32@6.13.0` (Arduino-ESP32 core 2.0.17). Pin maps: `docs/HARDWARE.md`.

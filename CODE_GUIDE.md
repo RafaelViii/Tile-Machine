@@ -34,7 +34,7 @@ Process line: **Shredder → Containing → Hot Press → Designing → Curing**
 
 | Part | Language | Framework / tools | Size (lines) |
 |---|---|---|---|
-| Machine firmware (esp1, esp3) | **C++** (Arduino style) | Arduino-ESP32 core 2.0.17, PlatformIO, U8g2 (OLED) | shredder 1,097 · hotpress 573 |
+| Machine firmware (esp1, esp2, esp3) | **C++** (Arduino style) | Arduino-ESP32 core 2.0.17, PlatformIO, U8g2 (OLED) | shredder 1,097 · containing 1,237 · hotpress 573 |
 | Hub firmware (esp0) | **C++** (Arduino + ESP-IDF APIs) | FreeRTOS tasks, `esp_http_client`, ArduinoJson 7 | 2,905 |
 | Shared firmware libraries | **C++** | used by all boards | TileProtocol 1,189 · TileIO 154 |
 | Website (Tile Console) | **TypeScript** + TSX (React) | React 19, Vite, Tailwind CSS v4, Firebase JS SDK | 5,034 TS/TSX + 182 CSS |
@@ -79,11 +79,23 @@ Folder: [firmware/shredder/](firmware/shredder/) · Behaviour spec: [docs/module
 
 ### esp2 · Containing (4 containers)
 
-**The firmware is not written yet** (Phase 5): [firmware/containing/](firmware/containing/) only holds a README.
-What exists: the behaviour spec [docs/modules/containing.md](docs/modules/containing.md), its message formats in
-[TileProtocol.h](firmware/lib/TileProtocol/src/TileProtocol.h#L257) (`StatusContaining`, `ConfigContaining`), the
-setting limits in [TileConfig.h](firmware/lib/TileProtocol/src/TileConfig.h), and the finished website page
-[ContainingPage.tsx](web/src/features/containing/ContainingPage.tsx).
+Folder: [firmware/containing/](firmware/containing/) · Behaviour spec: [docs/modules/containing.md](docs/modules/containing.md)
+· Website page: [ContainingPage.tsx](web/src/features/containing/ContainingPage.tsx)
+
+| File | Role |
+|---|---|
+| [main.cpp](firmware/containing/src/main.cpp) | Program: raw containers C1/C2 (buttons) and mixed C3/C4 (selector) |
+| ↳ [updateRaw()](firmware/containing/src/main.cpp#L218) · [tryStartRaw()](firmware/containing/src/main.cpp#L201) | Raw state machine: select kg, start, LOADCELL / TIME stop, jam and time-limit safety |
+| ↳ [updateMixed()](firmware/containing/src/main.cpp#L311) | Mixed state machine: MANUAL while on its side, TIME then hold |
+| ↳ [doStop()](firmware/containing/src/main.cpp#L370) | Website STOP: all servos off, outputs hard-disabled 200 ms |
+| ↳ [onConfig()](firmware/containing/src/main.cpp#L411) · [applyPendingConfig()](firmware/containing/src/main.cpp#L391) | New settings, applied per container only when it's idle |
+| ↳ [onCommand()](firmware/containing/src/main.cpp#L446) · [tare()](firmware/containing/src/main.cpp#L424) · [calibrate()](firmware/containing/src/main.cpp#L432) | Website commands, load-cell zero and calibration (saved on the board) |
+| ↳ [publishStatus()](firmware/containing/src/main.cpp#L513) | Sends live status (weights, states, progress) to the hub |
+| [hx711.cpp](firmware/containing/src/hx711.cpp) · [poll()](firmware/containing/src/hx711.cpp#L23) | Load-cell reader, rejects a missing HX711 |
+| [pca9685.cpp](firmware/containing/src/pca9685.cpp) · [begin()](firmware/containing/src/pca9685.cpp#L27) | Servo driver (50 Hz) |
+| [display.cpp](firmware/containing/src/display.cpp) · [row()](firmware/containing/src/display.cpp#L94) · [selfTest()](firmware/containing/src/display.cpp#L174) | OLED rows (always 21 characters) and the overlap self-test |
+| [inputs.h](firmware/containing/src/inputs.h) | SELECT/CONFIRM buttons and the 3-way selector |
+| [pins.h](firmware/containing/include/pins.h) · [config.h](firmware/containing/include/config.h) | Pin map · version, timings, fault bits |
 
 ### esp3 · Hot Press + Designing + Curing
 
