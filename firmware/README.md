@@ -34,7 +34,8 @@ Platform: `espressif32@6.13.0` (Arduino-ESP32 core 2.0.17). Pin maps: `docs/HARD
 
 **Link test on a module board (esp1/esp2/esp3)**
 `cd firmware/linktest && pio run -e shredder -t upload` (or `-e containing` / `-e hotpress`).
-Serial: `scanning channels` → `paired with hub … on channel N`. LED solid = paired. The website
+Serial: `scanning channels` → `paired with hub … on channel N`. LED solid = paired. The OLED (0x3C/0x3D) shows
+the link status and the boot I2C scan (OLED 3C, PCA9685 40: a wiring check; fw 0.1.1). The website
 tile for that module lights up within a few seconds.
 
 ⚠️ The link test **replaces** whatever sketch is on that board (for example your old shredder
